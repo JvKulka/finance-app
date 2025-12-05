@@ -1,0 +1,33 @@
+---
+description: Task Magic - Sistema de gerenciamento de tarefas baseado em arquivos para projetos de desenvolvimento
+---
+
+# Task Magic
+
+Task Magic é um sistema de gerenciamento de tarefas baseado em arquivos que ajuda a gerenciar projetos de software definindo planos, dividindo-os em tarefas acionáveis e mantendo uma memória do que foi feito, tudo funcionando perfeitamente com agentes de IA como Cursor e Windsurf.
+
+## Estrutura
+
+O sistema Task Magic consiste em três partes principais:
+
+1. **Plans (`.ai/plans/`)**: Onde você define o "o quê" e "por quê" do seu projeto ou funcionalidades específicas. Pense neles como seus Documentos de Requisitos de Produto (PRDs).
+   - `.ai/plans/PLAN.md`: Visão geral global de todo o projeto
+   - `.ai/plans/features/{feature}-plan.md`: PRDs detalhados para cada funcionalidade específica
+
+2. **Tasks (`.ai/tasks/` & `.ai/TASKS.md`)**: Onde os itens de trabalho reais vivem.
+   - `.ai/tasks/task{id}_description.md`: Cada tarefa tem seu próprio arquivo Markdown
+   - `.ai/TASKS.md`: Checklist principal de todas as tarefas
+
+3. **Memory (`.ai/memory/`)**: Tarefas concluídas e falhas, bem como planos antigos, são arquivados aqui.
+   - `.ai/memory/tasks/`: Arquivos de tarefas arquivados
+   - `.ai/memory/TASKS_LOG.md`: Log de quando as tarefas foram arquivadas
+   - `.ai/memory/plans/`: Arquivos de planos arquivados
+   - `.ai/memory/PLANS_LOG.md`: Log para planos arquivados
+
+## Como usar
+
+- Use `@.windsurf/rules/.task-magic/plans.md` para criar planos
+- Use `@.windsurf/rules/.task-magic/tasks.md` para criar e gerenciar tarefas
+- Consulte `.ai/TASKS.md` para ver o status do projeto
+- Consulte `.ai/plans/` para entender os requisitos
+

@@ -1,0 +1,81 @@
+---
+description: Regras para criar, atualizar e gerenciar tarefas no sistema Task Magic
+---
+
+# Regras de Tarefas (Tasks)
+
+Você é um especialista em quebrar planos em tarefas acionáveis e gerenciáveis.
+
+## Estrutura de uma Tarefa
+
+Cada tarefa deve ter seu próprio arquivo em `.ai/tasks/task{id}_description.md` com a seguinte estrutura:
+
+```markdown
+# Task {ID}: {Título da Tarefa}
+
+**Status**: pending | inprogress | completed | failed
+**Prioridade**: high | medium | low
+**Dependências**: [lista de IDs de tarefas que devem ser concluídas primeiro, ou "nenhuma"]
+
+## Descrição
+[Descrição detalhada do que precisa ser feito]
+
+## Critérios de Aceitação
+- [ ] Critério 1
+- [ ] Critério 2
+- [ ] Critério 3
+
+## Como Testar
+[Instruções claras de como testar se a tarefa foi concluída corretamente]
+
+## Notas
+[Qualquer informação adicional relevante]
+```
+
+## Gerenciamento do TASKS.md
+
+O arquivo `.ai/TASKS.md` é o checklist principal. Ele deve ser mantido sincronizado com os arquivos individuais de tarefas e ter este formato:
+
+```markdown
+# Project Tasks
+
+## Pending
+- [ ] Task {ID}: {Título} (Prioridade: {high|medium|low})
+
+## In Progress
+- [ ] Task {ID}: {Título} (Prioridade: {high|medium|low})
+
+## Completed
+- [x] Task {ID}: {Título}
+
+## Failed
+- [ ] Task {ID}: {Título} - {Razão do falho}
+```
+
+## Diretrizes
+
+1. **Tarefas pequenas e focadas**: Cada tarefa deve ser completável em uma sessão de trabalho
+2. **Testável**: Cada tarefa deve ter critérios de aceitação claros
+3. **Dependências claras**: Se uma tarefa depende de outra, liste explicitamente
+4. **Atualize o status**: Quando trabalhar em uma tarefa, atualize o status para "inprogress"
+5. **Mantenha sincronizado**: Sempre atualize tanto o arquivo individual quanto o `.ai/TASKS.md`
+6. **Arquive tarefas concluídas**: Tarefas concluídas ou falhas devem ser movidas para `.ai/memory/tasks/` e registradas em `.ai/memory/TASKS_LOG.md`
+
+## Quando criar tarefas
+
+- Quando um plano for aprovado e pronto para implementação
+- Quando você quebrar um plano em tarefas menores
+- Quando identificar trabalho adicional necessário
+
+## Quando atualizar tarefas
+
+- Ao começar a trabalhar: status → "inprogress"
+- Ao completar: status → "completed", mover para memory
+- Ao falhar: status → "failed", documentar razão, mover para memory
+- Ao identificar novas dependências ou requisitos
+
+## Exemplo de uso
+
+```
+@tasks.mdc Gere tarefas a partir do plano de autenticação em .ai/plans/features/auth-plan.md
+```
