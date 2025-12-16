@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc/client";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -41,11 +42,22 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold">Entrar</CardTitle>
-          <CardDescription>
-            Digite seu email e senha para acessar sua conta
-          </CardDescription>
+        <CardHeader className="space-y-4">
+          <div className="flex justify-center">
+            <Image
+              src="/images/LOGO.png"
+              alt="FinanZap"
+              width={120}
+              height={120}
+              className="object-contain"
+            />
+          </div>
+          <div className="space-y-1 text-center">
+            <CardTitle className="text-2xl font-bold">Entrar</CardTitle>
+            <CardDescription>
+              Digite seu email e senha para acessar sua conta
+            </CardDescription>
+          </div>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

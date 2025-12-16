@@ -7,6 +7,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 export const metadata: Metadata = {
   title: "Sistema de Controle Financeiro",
   description: "Sistema completo de controle financeiro pessoal e empresarial",
+  icons: {
+    icon: "/images/favicon.jpg",
+    shortcut: "/images/favicon.jpg",
+    apple: "/images/favicon.jpg",
+  },
 };
 
 export default function RootLayout({

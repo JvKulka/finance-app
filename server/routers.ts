@@ -26,6 +26,7 @@ export const appRouter = router({
         z.object({
           name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
           email: z.string().email("Email inválido"),
+          whatsapp: z.string().min(10, "Telefone WhatsApp deve ter pelo menos 10 dígitos"),
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -47,6 +48,7 @@ export const appRouter = router({
           openId,
           name: input.name,
           email: input.email,
+          whatsapp: input.whatsapp,
           loginMethod: "email",
           role: "user",
         });
@@ -397,7 +399,7 @@ export const appRouter = router({
           throw new TRPCError({ code: "FORBIDDEN" });
         }
         const { accountId, ...filters } = input;
-        return await db.getTransactionsByAccountId(accountId, filters);
+        return await db.getTransactionsWithRelationsByAccountId(accountId, filters);
       }),
 
     create: protectedProcedure
@@ -422,17 +424,20 @@ export const appRouter = router({
           throw new TRPCError({ code: "FORBIDDEN" });
         }
         const { transactionDate, ...transactionData } = input;
-        await db.createTransaction({
+        // Parse date string (yyyy-MM-dd) as local date to avoid timezone issues
+        const [year, month, day] = transactionDate.split('-').map(Number);
+        const localDate = new Date(year, month - 1, day);
+        const newTransaction = await db.createTransaction({
           ...transactionData,
           userId: ctx.user.id,
-          transactionDate: new Date(transactionDate),
+          transactionDate: localDate,
         });
         await db.createActivityLog({
           userId: ctx.user.id,
           action: "CREATE_TRANSACTION",
           details: `Criou transação: ${input.description}`,
         });
-        return { success: true };
+        return { success: true, transactionId: newTransaction.id };
       }),
 
     update: protectedProcedure
@@ -459,9 +464,15 @@ export const appRouter = router({
           throw new TRPCError({ code: "FORBIDDEN" });
         }
         const { id, transactionDate, ...updateData } = input;
+        // Parse date string (yyyy-MM-dd) as local date to avoid timezone issues
+        let localDate: Date | undefined;
+        if (transactionDate) {
+          const [year, month, day] = transactionDate.split('-').map(Number);
+          localDate = new Date(year, month - 1, day);
+        }
         await db.updateTransaction(id, {
           ...updateData,
-          transactionDate: transactionDate ? new Date(transactionDate) : undefined,
+          transactionDate: localDate,
         });
         await db.createActivityLog({
           userId: ctx.user.id,
@@ -488,6 +499,80 @@ export const appRouter = router({
       });
       return { success: true };
     }),
+
+    uploadAttachment: protectedProcedure
+      .input(
+        z.object({
+          transactionId: z.number(),
+          fileName: z.string(),
+          filePath: z.string(),
+          fileSize: z.number(),
+          mimeType: z.string().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const transaction = await db.getTransactionById(input.transactionId);
+        if (!transaction) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+        const account = await db.getAccountById(transaction.accountId);
+        if (!account || account.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        const attachment = await db.createTransactionAttachment({
+          transactionId: input.transactionId,
+          fileName: input.fileName,
+          filePath: input.filePath,
+          fileSize: input.fileSize,
+          mimeType: input.mimeType || null,
+        });
+        return attachment;
+      }),
+
+    deleteAttachment: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const attachment = await db.getTransactionAttachmentById(input.id);
+        if (!attachment) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Anexo não encontrado" });
+        }
+        
+        const transaction = await db.getTransactionById(attachment.transactionId);
+        if (!transaction) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+        const account = await db.getAccountById(transaction.accountId);
+        if (!account || account.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        
+        // Delete file from storage
+        const { error: storageError } = await supabaseServer.storage
+          .from('transaction-attachments')
+          .remove([attachment.filePath]);
+        
+        if (storageError) {
+          console.error("Erro ao deletar arquivo do storage:", storageError);
+          // Continue mesmo se houver erro no storage
+        }
+        
+        await db.deleteTransactionAttachment(input.id);
+        return { success: true };
+      }),
+
+    getAttachments: protectedProcedure
+      .input(z.object({ transactionId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const transaction = await db.getTransactionById(input.transactionId);
+        if (!transaction) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+        const account = await db.getAccountById(transaction.accountId);
+        if (!account || account.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        return await db.getTransactionAttachments(input.transactionId);
+      }),
   }),
 
   // ============= DASHBOARD =============

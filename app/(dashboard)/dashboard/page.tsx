@@ -2,6 +2,8 @@
 
 import { trpc } from "@/lib/trpc/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import CreateAccountDialog from "@/components/CreateAccountDialog";
 import TransactionDialog from "@/components/TransactionDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,8 +57,13 @@ export default function Dashboard() {
         end = endOfMonth(now);
         break;
       case "custom":
-        start = customStartDate ? new Date(customStartDate) : startOfMonth(now);
-        end = customEndDate ? new Date(customEndDate) : endOfMonth(now);
+        if (customStartDate && customEndDate) {
+          start = startOfDay(new Date(customStartDate));
+          end = endOfDay(new Date(customEndDate));
+        } else {
+          start = startOfMonth(now);
+          end = endOfMonth(now);
+        }
         break;
       default:
         start = startOfMonth(now);
@@ -162,25 +169,37 @@ export default function Dashboard() {
       </div>
 
       {/* Period Filters */}
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 flex-wrap items-end">
         <Button
           variant={periodFilter === "today" ? "default" : "outline"}
           size="sm"
-          onClick={() => setPeriodFilter("today")}
+          onClick={() => {
+            setPeriodFilter("today");
+            setCustomStartDate("");
+            setCustomEndDate("");
+          }}
         >
           Hoje
         </Button>
         <Button
           variant={periodFilter === "last7days" ? "default" : "outline"}
           size="sm"
-          onClick={() => setPeriodFilter("last7days")}
+          onClick={() => {
+            setPeriodFilter("last7days");
+            setCustomStartDate("");
+            setCustomEndDate("");
+          }}
         >
           Últimos 7 dias
         </Button>
         <Button
           variant={periodFilter === "currentMonth" ? "default" : "outline"}
           size="sm"
-          onClick={() => setPeriodFilter("currentMonth")}
+          onClick={() => {
+            setPeriodFilter("currentMonth");
+            setCustomStartDate("");
+            setCustomEndDate("");
+          }}
         >
           Mês atual
         </Button>
@@ -191,6 +210,30 @@ export default function Dashboard() {
         >
           Personalizado
         </Button>
+
+        {/* Custom Date Range Inputs */}
+        {periodFilter === "custom" && (
+          <>
+            <div className="grid gap-2">
+              <Label className="text-sm">Data Inicial</Label>
+              <Input
+                type="date"
+                value={customStartDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                className="w-full"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label className="text-sm">Data Final</Label>
+              <Input
+                type="date"
+                value={customEndDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                className="w-full"
+              />
+            </div>
+          </>
+        )}
       </div>
 
       {/* Summary Cards */}

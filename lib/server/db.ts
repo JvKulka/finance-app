@@ -11,6 +11,7 @@ export type User = {
   email: string | null;
   password: string | null;
   loginMethod: string | null;
+  whatsapp: string | null;
   role: "user" | "admin";
   createdAt: Date;
   updatedAt: Date;
@@ -36,6 +37,16 @@ export type Category = {
   isDefault: boolean;
   createdAt: Date;
   updatedAt: Date;
+};
+
+export type TransactionAttachment = {
+  id: number;
+  transactionId: number;
+  fileName: string;
+  filePath: string;
+  fileSize: number;
+  mimeType: string | null;
+  createdAt: Date;
 };
 
 export type Transaction = {
@@ -120,6 +131,7 @@ function mapUserFromDb(row: any): User {
     email: row.email,
     password: row.password,
     loginMethod: row.login_method,
+    whatsapp: row.whatsapp,
     role: row.role,
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
@@ -162,13 +174,50 @@ function mapTransactionFromDb(row: any): Transaction {
     description: row.description,
     amount: row.amount,
     type: row.type,
-    transactionDate: new Date(row.transaction_date),
+    // Parse date from database as local date to avoid timezone issues
+    // If transaction_date is a string in format YYYY-MM-DD, parse it as local date
+    transactionDate: (() => {
+      const dateStr = row.transaction_date;
+      if (typeof dateStr === 'string' && dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const [year, month, day] = dateStr.split('-').map(Number);
+        return new Date(year, month - 1, day);
+      }
+      return new Date(dateStr);
+    })(),
     paymentMethod: row.payment_method,
     status: row.status,
     expenseType: row.expense_type,
     isRecurring: row.is_recurring,
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
+  };
+}
+
+export type TransactionWithRelations = Transaction & {
+  category?: { id: number; name: string; color: string } | null;
+  creditCard?: { id: number; name: string } | null;
+  account?: { id: number; name: string } | null;
+  user?: { id: number; name: string } | null;
+};
+
+function mapTransactionWithRelationsFromDb(row: any): TransactionWithRelations {
+  const transaction = mapTransactionFromDb(row);
+  // Supabase retorna relacionamentos como arrays ou objetos únicos
+  const category = Array.isArray(row.categories) ? row.categories[0] : row.categories;
+  const creditCard = Array.isArray(row.credit_cards) ? row.credit_cards[0] : row.credit_cards;
+  const account = Array.isArray(row.accounts) ? row.accounts[0] : row.accounts;
+  const user = Array.isArray(row.users) ? row.users[0] : row.users;
+  const attachments = Array.isArray(row.transaction_attachments) 
+    ? row.transaction_attachments.map(mapTransactionAttachmentFromDb)
+    : (row.transaction_attachments ? [mapTransactionAttachmentFromDb(row.transaction_attachments)] : []);
+  
+  return {
+    ...transaction,
+    category: category ? { id: category.id, name: category.name, color: category.color } : null,
+    creditCard: creditCard ? { id: creditCard.id, name: creditCard.name } : null,
+    account: account ? { id: account.id, name: account.name } : null,
+    user: user ? { id: user.id, name: user.name } : null,
+    attachments: attachments || [],
   };
 }
 
@@ -266,6 +315,7 @@ export async function upsertUser(data: Partial<User>): Promise<User> {
   if (data.email !== undefined) insertData.email = data.email;
   if (data.password !== undefined) insertData.password = data.password;
   if (data.loginMethod !== undefined) insertData.login_method = data.loginMethod;
+  if (data.whatsapp !== undefined) insertData.whatsapp = data.whatsapp;
   if (data.role !== undefined) insertData.role = data.role;
   if (data.lastSignedIn !== undefined) insertData.last_signed_in = data.lastSignedIn.toISOString();
 
@@ -467,7 +517,26 @@ export async function getTransactionsByAccountId(
 ): Promise<Transaction[]> {
   let query = supabaseServer
     .from('transactions')
-    .select('*')
+    .select(`
+      *,
+      categories:category_id (
+        id,
+        name,
+        color
+      ),
+      credit_cards:credit_card_id (
+        id,
+        name
+      ),
+      accounts:account_id (
+        id,
+        name
+      ),
+      users:user_id (
+        id,
+        name
+      )
+    `)
     .eq('account_id', accountId);
 
   if (filters?.startDate) {
@@ -495,6 +564,76 @@ export async function getTransactionsByAccountId(
 
   if (error) throw error;
   return (data || []).map(mapTransactionFromDb);
+}
+
+export async function getTransactionsWithRelationsByAccountId(
+  accountId: number,
+  filters?: {
+    startDate?: string;
+    endDate?: string;
+    categoryId?: number;
+    type?: "income" | "expense";
+    status?: "paid" | "pending";
+    paymentMethod?: string;
+  }
+): Promise<TransactionWithRelations[]> {
+  let query = supabaseServer
+    .from('transactions')
+    .select(`
+      *,
+      categories (
+        id,
+        name,
+        color
+      ),
+      credit_cards (
+        id,
+        name
+      ),
+      accounts (
+        id,
+        name
+      ),
+      users (
+        id,
+        name
+      ),
+      transaction_attachments (
+        id,
+        file_name,
+        file_path,
+        file_size,
+        mime_type,
+        created_at
+      )
+    `)
+    .eq('account_id', accountId);
+
+  if (filters?.startDate) {
+    query = query.gte('transaction_date', filters.startDate);
+  }
+  if (filters?.endDate) {
+    query = query.lte('transaction_date', filters.endDate);
+  }
+  if (filters?.categoryId) {
+    query = query.eq('category_id', filters.categoryId);
+  }
+  if (filters?.type) {
+    query = query.eq('type', filters.type);
+  }
+  if (filters?.status) {
+    query = query.eq('status', filters.status);
+  }
+  if (filters?.paymentMethod) {
+    query = query.eq('payment_method', filters.paymentMethod);
+  }
+
+  query = query.order('transaction_date', { ascending: false });
+
+  const { data, error } = await query;
+
+  if (error) throw error;
+  return (data || []).map(mapTransactionWithRelationsFromDb);
 }
 
 export async function getTransactionById(id: number): Promise<Transaction | null> {
@@ -554,6 +693,72 @@ export async function updateTransaction(id: number, data: Partial<Transaction>):
 export async function deleteTransaction(id: number): Promise<void> {
   const { error } = await supabaseServer
     .from('transactions')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+// ============================================
+// TRANSACTION ATTACHMENT FUNCTIONS
+// ============================================
+
+function mapTransactionAttachmentFromDb(row: any): TransactionAttachment {
+  return {
+    id: row.id,
+    transactionId: row.transaction_id,
+    fileName: row.file_name,
+    filePath: row.file_path,
+    fileSize: row.file_size,
+    mimeType: row.mime_type,
+    createdAt: new Date(row.created_at),
+  };
+}
+
+export async function getTransactionAttachments(transactionId: number): Promise<TransactionAttachment[]> {
+  const { data, error } = await supabaseServer
+    .from('transaction_attachments')
+    .select('*')
+    .eq('transaction_id', transactionId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return (data || []).map(mapTransactionAttachmentFromDb);
+}
+
+export async function createTransactionAttachment(
+  data: Omit<TransactionAttachment, "id" | "createdAt">
+): Promise<TransactionAttachment> {
+  const { data: result, error } = await supabaseServer
+    .from('transaction_attachments')
+    .insert({
+      transaction_id: data.transactionId,
+      file_name: data.fileName,
+      file_path: data.filePath,
+      file_size: data.fileSize,
+      mime_type: data.mimeType,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return mapTransactionAttachmentFromDb(result);
+}
+
+export async function getTransactionAttachmentById(id: number): Promise<TransactionAttachment | null> {
+  const { data, error } = await supabaseServer
+    .from('transaction_attachments')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error || !data) return null;
+  return mapTransactionAttachmentFromDb(data);
+}
+
+export async function deleteTransactionAttachment(id: number): Promise<void> {
+  const { error } = await supabaseServer
+    .from('transaction_attachments')
     .delete()
     .eq('id', id);
 

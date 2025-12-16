@@ -9,8 +9,8 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import {
-  BarChart3,
   Calendar,
   CreditCard,
   FileText,
@@ -67,13 +67,16 @@ export default function FinanceLayout({ children }: FinanceLayoutProps) {
       {/* Sidebar */}
       <aside className="w-60 border-r border-border bg-card flex flex-col">
         {/* Logo */}
-        <div className="h-16 flex items-center px-6 border-b border-border">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <BarChart3 className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="font-semibold text-lg">FinanceApp</span>
-          </div>
+        <div className="h-16 flex items-center justify-center px-6 border-b border-border">
+          <Link href="/dashboard" className="flex items-center">
+            <Image
+              src="/images/LOGOv2.png"
+              alt="FinanZap"
+              width={120}
+              height={40}
+              className="object-contain"
+            />
+          </Link>
         </div>
 
         {/* Navigation */}

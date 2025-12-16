@@ -85,11 +85,54 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(320) UNIQUE,
   password VARCHAR(255),
   login_method VARCHAR(64),
+  whatsapp VARCHAR(20),
   role user_role DEFAULT 'user' NOT NULL,
   created_at TIMESTAMP DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMP DEFAULT NOW() NOT NULL,
   last_signed_in TIMESTAMP DEFAULT NOW() NOT NULL
 );
+
+-- Adicionar colunas se a tabela já existir
+DO $$ 
+BEGIN
+  -- Adicionar open_id se não existir
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'users' AND column_name = 'open_id'
+  ) THEN
+    ALTER TABLE users ADD COLUMN open_id VARCHAR(64) UNIQUE;
+  END IF;
+  
+  -- Adicionar whatsapp se não existir
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'users' AND column_name = 'whatsapp'
+  ) THEN
+    ALTER TABLE users ADD COLUMN whatsapp VARCHAR(20);
+  END IF;
+END $$;
+
+-- Adicionar colunas se a tabela já existir
+DO $$ 
+BEGIN
+  -- Adicionar open_id se não existir
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'users') THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'users' AND column_name = 'open_id'
+    ) THEN
+      ALTER TABLE users ADD COLUMN open_id VARCHAR(64) UNIQUE;
+    END IF;
+    
+    -- Adicionar whatsapp se não existir
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'users' AND column_name = 'whatsapp'
+    ) THEN
+      ALTER TABLE users ADD COLUMN whatsapp VARCHAR(20);
+    END IF;
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_open_id ON users(open_id);
@@ -171,6 +214,21 @@ CREATE INDEX IF NOT EXISTS idx_transactions_category_id ON transactions(category
 CREATE INDEX IF NOT EXISTS idx_transactions_transaction_date ON transactions(transaction_date);
 CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type);
 CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
+
+-- ============================================
+-- TABELA: transaction_attachments
+-- ============================================
+CREATE TABLE IF NOT EXISTS transaction_attachments (
+  id SERIAL PRIMARY KEY,
+  transaction_id INTEGER NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+  file_name VARCHAR(255) NOT NULL,
+  file_path VARCHAR(500) NOT NULL,
+  file_size INTEGER NOT NULL,
+  mime_type VARCHAR(100),
+  created_at TIMESTAMP DEFAULT NOW() NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_transaction_attachments_transaction_id ON transaction_attachments(transaction_id);
 
 -- ============================================
 -- TABELA: scheduled_payments

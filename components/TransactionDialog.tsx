@@ -13,10 +13,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { trpc } from "@/lib/trpc";
+import { trpc } from "@/lib/trpc/client";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, X, Paperclip } from "lucide-react";
 import { format } from "date-fns";
+import { supabaseClient } from "@/lib/supabase/client";
 
 interface TransactionDialogProps {
   children: React.ReactNode;
@@ -31,14 +32,29 @@ export default function TransactionDialog({ children, accountId, transaction, on
   const [categoryId, setCategoryId] = useState<string>(transaction?.categoryId?.toString() || "");
   const [description, setDescription] = useState(transaction?.description || "");
   const [amount, setAmount] = useState(transaction?.amount ? (transaction.amount / 100).toFixed(2) : "");
-  const [transactionDate, setTransactionDate] = useState(
-    transaction?.transactionDate ? format(new Date(transaction.transactionDate), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd")
-  );
+  const [transactionDate, setTransactionDate] = useState(() => {
+    if (transaction?.transactionDate) {
+      // Format date in local timezone to avoid timezone issues
+      const date = new Date(transaction.transactionDate);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    // Default to today in local timezone
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
   const [paymentMethod, setPaymentMethod] = useState(transaction?.paymentMethod || "");
   const [status, setStatus] = useState<"paid" | "pending">(transaction?.status || "paid");
   const [expenseType, setExpenseType] = useState<"fixed" | "variable">(transaction?.expenseType || "variable");
   const [isRecurring, setIsRecurring] = useState(transaction?.isRecurring || false);
   const [creditCardId, setCreditCardId] = useState<string>(transaction?.creditCardId?.toString() || "");
+  const [files, setFiles] = useState<File[]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
 
   const utils = trpc.useUtils();
 
@@ -65,8 +81,14 @@ export default function TransactionDialog({ children, accountId, transaction, on
   }, [type, filteredCategories, categoryId]);
 
   const createMutation = trpc.transactions.create.useMutation({
-    onSuccess: () => {
+    onSuccess: async (result) => {
       toast.success("Transação criada com sucesso!");
+      
+      // Upload files after creation
+      if (files.length > 0 && result.transactionId) {
+        await uploadFiles(result.transactionId);
+      }
+      
       setOpen(false);
       resetForm();
       utils.transactions.list.invalidate();
@@ -80,8 +102,14 @@ export default function TransactionDialog({ children, accountId, transaction, on
   });
 
   const updateMutation = trpc.transactions.update.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Transação atualizada com sucesso!");
+      
+      // Upload files after update
+      if (files.length > 0 && transaction?.id) {
+        await uploadFiles(transaction.id);
+      }
+      
       setOpen(false);
       utils.transactions.list.invalidate();
       utils.dashboard.summary.invalidate();
@@ -104,6 +132,92 @@ export default function TransactionDialog({ children, accountId, transaction, on
     setExpenseType("variable");
     setIsRecurring(false);
     setCreditCardId("");
+    setFiles([]);
+  };
+
+  // Fetch attachments if editing
+  const { data: attachments } = trpc.transactions.getAttachments.useQuery(
+    { transactionId: transaction?.id! },
+    { enabled: !!transaction?.id }
+  );
+
+  const uploadAttachmentMutation = trpc.transactions.uploadAttachment.useMutation();
+  const deleteAttachmentMutation = trpc.transactions.deleteAttachment.useMutation();
+
+  const getAttachmentUrl = (filePath: string) => {
+    const { data } = supabaseClient.storage
+      .from('transaction-attachments')
+      .getPublicUrl(filePath);
+    return data.publicUrl;
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      // Validar tamanho (máximo 10MB por arquivo)
+      const maxSize = 10 * 1024 * 1024;
+      const validFiles = newFiles.filter(file => {
+        if (file.size > maxSize) {
+          toast.error(`Arquivo ${file.name} excede o tamanho máximo de 10MB`);
+          return false;
+        }
+        return true;
+      });
+      setFiles(prev => [...prev, ...validFiles]);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDeleteAttachment = async (attachmentId: number) => {
+    try {
+      await deleteAttachmentMutation.mutateAsync({ id: attachmentId });
+      toast.success("Anexo removido com sucesso!");
+      utils.transactions.getAttachments.invalidate({ transactionId: transaction?.id! });
+    } catch (error: any) {
+      toast.error(`Erro ao remover anexo: ${error.message}`);
+    }
+  };
+
+  const uploadFiles = async (transactionId: number) => {
+    if (files.length === 0) return;
+
+    setUploadingFiles(true);
+    try {
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("transactionId", transactionId.toString());
+
+        const response = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "Erro ao fazer upload");
+        }
+
+        const data = await response.json();
+
+        await uploadAttachmentMutation.mutateAsync({
+          transactionId,
+          fileName: data.fileName,
+          filePath: data.filePath,
+          fileSize: data.fileSize,
+          mimeType: data.mimeType,
+        });
+      }
+      toast.success("Arquivos enviados com sucesso!");
+      setFiles([]);
+    } catch (error: any) {
+      toast.error(`Erro ao fazer upload: ${error.message}`);
+    } finally {
+      setUploadingFiles(false);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -171,38 +285,57 @@ export default function TransactionDialog({ children, accountId, transaction, on
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            {/* Type */}
-            {!transaction && (
+            {/* Type and Category */}
+            {!transaction ? (
+              <div className="grid grid-cols-2 gap-4">
+                {/* Type */}
+                <div className="grid gap-2">
+                  <Label htmlFor="type">Tipo</Label>
+                  <Select value={type} onValueChange={(value) => setType(value as "income" | "expense")} disabled={isPending}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="income">Receita</SelectItem>
+                      <SelectItem value="expense">Despesa</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {/* Category */}
+                <div className="grid gap-2">
+                  <Label htmlFor="category">Categoria</Label>
+                  <Select value={categoryId} onValueChange={setCategoryId} disabled={isPending}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Selecione uma categoria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filteredCategories.map((category) => (
+                        <SelectItem key={category.id} value={category.id.toString()}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            ) : (
+              /* Category - Full width when editing */
               <div className="grid gap-2">
-                <Label htmlFor="type">Tipo</Label>
-                <Select value={type} onValueChange={(value) => setType(value as "income" | "expense")} disabled={isPending}>
-                  <SelectTrigger>
-                    <SelectValue />
+                <Label htmlFor="category">Categoria</Label>
+                <Select value={categoryId} onValueChange={setCategoryId} disabled={isPending}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Selecione uma categoria" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="income">Receita</SelectItem>
-                    <SelectItem value="expense">Despesa</SelectItem>
+                    {filteredCategories.map((category) => (
+                      <SelectItem key={category.id} value={category.id.toString()}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
             )}
-
-            {/* Category */}
-            <div className="grid gap-2">
-              <Label htmlFor="category">Categoria</Label>
-              <Select value={categoryId} onValueChange={setCategoryId} disabled={isPending}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione uma categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  {filteredCategories.map((category) => (
-                    <SelectItem key={category.id} value={category.id.toString()}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
 
             {/* Description */}
             <div className="grid gap-2">
@@ -214,6 +347,7 @@ export default function TransactionDialog({ children, accountId, transaction, on
                 onChange={(e) => setDescription(e.target.value)}
                 disabled={isPending}
                 rows={2}
+                className="w-full"
               />
             </div>
 
@@ -230,6 +364,7 @@ export default function TransactionDialog({ children, accountId, transaction, on
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   disabled={isPending}
+                  className="w-full"
                 />
               </div>
               <div className="grid gap-2">
@@ -240,6 +375,7 @@ export default function TransactionDialog({ children, accountId, transaction, on
                   value={transactionDate}
                   onChange={(e) => setTransactionDate(e.target.value)}
                   disabled={isPending}
+                  className="w-full"
                 />
               </div>
             </div>
@@ -249,7 +385,7 @@ export default function TransactionDialog({ children, accountId, transaction, on
               <div className="grid gap-2">
                 <Label htmlFor="paymentMethod">Forma de Pagamento (opcional)</Label>
                 <Select value={paymentMethod || undefined} onValueChange={(value) => setPaymentMethod(value || "")} disabled={isPending}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -265,7 +401,7 @@ export default function TransactionDialog({ children, accountId, transaction, on
               <div className="grid gap-2">
                 <Label htmlFor="creditCard">Cartão de Crédito (opcional)</Label>
                 <Select value={creditCardId || undefined} onValueChange={(value) => setCreditCardId(value || "")} disabled={isPending}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Nenhum" />
                   </SelectTrigger>
                   <SelectContent>
@@ -288,7 +424,7 @@ export default function TransactionDialog({ children, accountId, transaction, on
               <div className="grid gap-2">
                 <Label htmlFor="status">Situação</Label>
                 <Select value={status} onValueChange={(value) => setStatus(value as "paid" | "pending")} disabled={isPending}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -305,7 +441,7 @@ export default function TransactionDialog({ children, accountId, transaction, on
                     onValueChange={(value) => setExpenseType(value as "fixed" | "variable")}
                     disabled={isPending}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -316,14 +452,91 @@ export default function TransactionDialog({ children, accountId, transaction, on
                 </div>
               )}
             </div>
+
+            {/* File Upload */}
+            <div className="grid gap-2">
+              <Label htmlFor="files">Anexos (opcional)</Label>
+              <Input
+                id="files"
+                type="file"
+                multiple
+                onChange={handleFileChange}
+                disabled={isPending || uploadingFiles}
+                className="w-full"
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+              />
+              <p className="text-xs text-muted-foreground">
+                Formatos aceitos: PDF, JPG, PNG, DOC, DOCX. Máximo 10MB por arquivo.
+              </p>
+              
+              {/* Selected files */}
+              {files.length > 0 && (
+                <div className="space-y-2 mt-2">
+                  {files.map((file, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-muted rounded-md">
+                      <div className="flex items-center gap-2">
+                        <Paperclip className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm">{file.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                        </span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeFile(index)}
+                        disabled={isPending || uploadingFiles}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Existing attachments (when editing) */}
+              {transaction && attachments && attachments.length > 0 && (
+                <div className="space-y-2 mt-2">
+                  <Label className="text-sm">Anexos existentes:</Label>
+                  {attachments.map((attachment) => (
+                    <div key={attachment.id} className="flex items-center justify-between p-2 bg-muted rounded-md">
+                      <div className="flex items-center gap-2">
+                        <Paperclip className="w-4 h-4 text-muted-foreground" />
+                        <a
+                          href={getAttachmentUrl(attachment.filePath)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-primary hover:underline"
+                        >
+                          {attachment.fileName}
+                        </a>
+                        <span className="text-xs text-muted-foreground">
+                          ({(attachment.fileSize / 1024 / 1024).toFixed(2)} MB)
+                        </span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteAttachment(attachment.id)}
+                        disabled={isPending || uploadingFiles}
+                      >
+                        <X className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {transaction ? "Atualizar" : "Criar"}
+            <Button type="submit" disabled={isPending || uploadingFiles}>
+              {(isPending || uploadingFiles) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {uploadingFiles ? "Enviando arquivos..." : transaction ? "Atualizar" : "Criar"}
             </Button>
           </DialogFooter>
         </form>

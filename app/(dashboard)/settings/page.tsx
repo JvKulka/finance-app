@@ -43,6 +43,7 @@ export default function SettingsPage() {
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteName, setInviteName] = useState("");
+  const [inviteWhatsapp, setInviteWhatsapp] = useState("");
   const [language, setLanguage] = useState("pt-BR");
   const [currency, setCurrency] = useState("BRL");
 
@@ -60,6 +61,7 @@ export default function SettingsPage() {
       setIsInviteDialogOpen(false);
       setInviteEmail("");
       setInviteName("");
+      setInviteWhatsapp("");
       utils.users.list.invalidate();
     },
     onError: (error) => {
@@ -102,13 +104,14 @@ export default function SettingsPage() {
   };
 
   const handleInviteUser = () => {
-    if (!inviteEmail.trim() || !inviteName.trim()) {
+    if (!inviteEmail.trim() || !inviteName.trim() || !inviteWhatsapp.trim()) {
       toast.error("Por favor, preencha todos os campos");
       return;
     }
     inviteUserMutation.mutate({
       email: inviteEmail.trim(),
       name: inviteName.trim(),
+      whatsapp: inviteWhatsapp.trim(),
     });
   };
 
@@ -283,6 +286,24 @@ export default function SettingsPage() {
                 onChange={(e) => setInviteEmail(e.target.value)}
                 placeholder="email@exemplo.com"
                 disabled={inviteUserMutation.isPending}
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="invite-whatsapp">Telefone WhatsApp</Label>
+              <Input
+                id="invite-whatsapp"
+                type="tel"
+                value={inviteWhatsapp}
+                onChange={(e) => {
+                  // Remove tudo que não é número
+                  const value = e.target.value.replace(/\D/g, '');
+                  setInviteWhatsapp(value);
+                }}
+                placeholder="11999999999"
+                disabled={inviteUserMutation.isPending}
+                required
+                maxLength={15}
               />
             </div>
           </div>

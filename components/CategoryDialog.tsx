@@ -60,7 +60,7 @@ const ICON_OPTIONS = [
 ];
 
 const COLOR_OPTIONS = [
-  { name: "Verde", value: "#10B981" },
+  { name: "Verde", value: "#2ECC71" },
   { name: "Vermelho", value: "#EF4444" },
   { name: "Azul", value: "#3B82F6" },
   { name: "Roxo", value: "#8B5CF6" },
@@ -77,7 +77,7 @@ export default function CategoryDialog({ children, accountId, category, onSucces
   const [name, setName] = useState(category?.name || "");
   const [type, setType] = useState<"income" | "expense">(category?.type || "expense");
   const [icon, setIcon] = useState(category?.icon || "Circle");
-  const [color, setColor] = useState(category?.color || "#3B82F6");
+  const [color, setColor] = useState(category?.color || "#2ECC71");
 
   const utils = trpc.useUtils();
 
@@ -112,12 +112,12 @@ export default function CategoryDialog({ children, accountId, category, onSucces
       setName(category.name || "");
       setType(category.type || "expense");
       setIcon(category.icon || "Circle");
-      setColor(category.color || "#3B82F6");
+      setColor(category.color || "#2ECC71");
     } else {
       setName("");
       setType("expense");
       setIcon("Circle");
-      setColor("#3B82F6");
+      setColor("#2ECC71");
     }
   };
 
@@ -126,7 +126,7 @@ export default function CategoryDialog({ children, accountId, category, onSucces
       setName(category.name || "");
       setType(category.type || "expense");
       setIcon(category.icon || "Circle");
-      setColor(category.color || "#3B82F6");
+      setColor(category.color || "#2ECC71");
       setOpen(true);
     } else {
       resetForm();

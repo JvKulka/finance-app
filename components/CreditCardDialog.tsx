@@ -25,6 +25,7 @@ interface CreditCardDialogProps {
 
 const BRAND_OPTIONS = ["Visa", "Mastercard", "Elo", "American Express", "Hipercard", "Outro"];
 const COLOR_OPTIONS = [
+  { name: "Verde", value: "#2ECC71" },
   { name: "Azul", value: "#3B82F6" },
   { name: "Vermelho", value: "#EF4444" },
   { name: "Verde", value: "#10B981" },
@@ -38,7 +39,7 @@ export default function CreditCardDialog({ children, accountId, card, onSuccess 
   const [name, setName] = useState(card?.name || "");
   const [lastFourDigits, setLastFourDigits] = useState(card?.lastFourDigits || "");
   const [brand, setBrand] = useState(card?.brand || "Visa");
-  const [color, setColor] = useState(card?.color || "#3B82F6");
+  const [color, setColor] = useState(card?.color || "#2ECC71");
   const [creditLimit, setCreditLimit] = useState(card?.creditLimit ? (card.creditLimit / 100).toFixed(2) : "");
   const [closingDay, setClosingDay] = useState(card?.closingDay?.toString() || "10");
   const [dueDay, setDueDay] = useState(card?.dueDay?.toString() || "15");
@@ -50,7 +51,7 @@ export default function CreditCardDialog({ children, accountId, card, onSuccess 
       setName("");
       setLastFourDigits("");
       setBrand("Visa");
-      setColor("#3B82F6");
+      setColor("#2ECC71");
       setCreditLimit("");
       setClosingDay("10");
       setDueDay("15");
@@ -58,7 +59,7 @@ export default function CreditCardDialog({ children, accountId, card, onSuccess 
       setName(card.name || "");
       setLastFourDigits(card.lastFourDigits || "");
       setBrand(card.brand || "Visa");
-      setColor(card.color || "#3B82F6");
+      setColor(card.color || "#2ECC71");
       setCreditLimit(card.creditLimit ? (card.creditLimit / 100).toFixed(2) : "");
       setClosingDay(card.closingDay?.toString() || "10");
       setDueDay(card.dueDay?.toString() || "15");
