@@ -25,9 +25,6 @@ export default function Dashboard() {
   // Get user accounts
   const { data: accounts, isLoading: accountsLoading, error: accountsError } = trpc.accounts.list.useQuery(undefined, {
     retry: false,
-    onError: (error) => {
-      console.error("[Dashboard] Erro ao carregar contas:", error);
-    },
   });
 
   // Set default account when loaded
@@ -85,9 +82,6 @@ export default function Dashboard() {
     {
       enabled: !!selectedAccount,
       retry: false,
-      onError: (error) => {
-        console.error("[Dashboard] Erro ao carregar resumo:", error);
-      },
     }
   );
 
@@ -99,9 +93,6 @@ export default function Dashboard() {
     {
       enabled: !!selectedAccount,
       retry: false,
-      onError: (error) => {
-        console.error("[Dashboard] Erro ao carregar despesas por categoria:", error);
-      },
     }
   );
 
