@@ -16,6 +16,13 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, Legend, Line, LineCh
 
 type PeriodFilter = "today" | "last7days" | "currentMonth" | "custom";
 
+type ExpenseByCategory = {
+  categoryId: number;
+  categoryName: string;
+  categoryColor: string;
+  total: number;
+};
+
 export default function Dashboard() {
   const [selectedAccount, setSelectedAccount] = useState<number | null>(null);
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("currentMonth");
@@ -319,9 +326,9 @@ export default function Dashboard() {
                     cx="50%"
                     cy="50%"
                     outerRadius={100}
-                    label={(entry) => `${entry.categoryName}: ${formatCurrency(entry.total)}`}
+                    label={(entry: ExpenseByCategory) => `${entry.categoryName}: ${formatCurrency(entry.total)}`}
                   >
-                    {expensesByCategory.map((entry, index) => (
+                    {expensesByCategory.map((entry: ExpenseByCategory, index: number) => (
                       <Cell key={`cell-${index}`} fill={entry.categoryColor} />
                     ))}
                   </Pie>

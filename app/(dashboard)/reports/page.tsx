@@ -263,9 +263,9 @@ export default function ReportsPage() {
                     cx="50%"
                     cy="50%"
                     outerRadius={100}
-                    label={(entry) => `${entry.categoryName}: ${formatCurrency(entry.total)}`}
+                    label={(entry: { categoryName: string; total: number }) => `${entry.categoryName}: ${formatCurrency(entry.total)}`}
                   >
-                    {expensesByCategory.map((entry, index) => (
+                    {expensesByCategory.map((entry: { categoryColor: string }, index: number) => (
                       <Cell key={`cell-${index}`} fill={entry.categoryColor} />
                     ))}
                   </Pie>
