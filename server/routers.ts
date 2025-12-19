@@ -6,7 +6,7 @@ import { hashPassword, verifyPassword } from "./_core/auth";
 import { getSessionCookieOptions } from "../lib/server/cookies";
 import { sdk } from "./_core/sdk";
 import { systemRouter } from "./_core/systemRouter";
-import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import { protectedProcedure, publicProcedure, router } from "../lib/server/trpc";
 import * as db from "../lib/server/db";
 
 export const appRouter = router({
