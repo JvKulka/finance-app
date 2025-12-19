@@ -1,11 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
-import { sdk } from "@/server/_core/sdk";
+import { sdk } from "../../../server/_core/sdk";
+import { COOKIE_NAME } from "../../../shared/const";
+import { parse as parseCookieHeader } from "cookie";
+
+// Helper para parsear cookies do NextRequest
+function parseCookies(cookieHeader: string | null): Map<string, string> {
+  const cookies = new Map<string, string>();
+  if (!cookieHeader) return cookies;
+
+  const parsed = parseCookieHeader(cookieHeader);
+  Object.entries(parsed).forEach(([name, value]) => {
+    cookies.set(name, value);
+  });
+
+  return cookies;
+}
 
 export async function POST(request: NextRequest) {
   try {
     // Verificar autenticação
-    const session = await sdk.getSession(request);
+    const cookieHeader = request.headers.get("cookie");
+    const cookies = parseCookies(cookieHeader);
+    const sessionCookie = cookies.get(COOKIE_NAME);
+
+    if (!sessionCookie) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    }
+
+    const session = await sdk.verifySession(sessionCookie);
     if (!session) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
