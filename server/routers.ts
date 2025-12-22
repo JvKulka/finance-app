@@ -8,6 +8,7 @@ import { sdk } from "./_core/sdk";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "../lib/server/trpc";
 import * as db from "../lib/server/db";
+import { supabaseServer } from "../lib/supabase/server";
 
 export const appRouter = router({
   system: systemRouter,
@@ -785,6 +786,7 @@ export const appRouter = router({
           ...goalData,
           currentAmount: 0,
           deadline: deadline ? new Date(deadline) : undefined,
+          status: "active",
         });
         return { success: true };
       }),

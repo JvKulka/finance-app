@@ -1,8 +1,25 @@
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
-import type { Express, Request, Response } from "express";
 import * as db from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
+
+// Types compatible with Express but don't require express package
+type Express = any; // Not used in Next.js setup
+type Request = {
+  query: {
+    [key: string]: string | string[] | undefined;
+  };
+  headers: {
+    cookie?: string;
+    [key: string]: string | string[] | undefined;
+  };
+};
+type Response = {
+  status: (code: number) => Response;
+  json: (data: any) => void;
+  cookie: (name: string, value: string, options: any) => void;
+  redirect: (code: number, url: string) => void;
+};
 
 function getQueryParam(req: Request, key: string): string | undefined {
   const value = req.query[key];

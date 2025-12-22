@@ -1,4 +1,20 @@
-import type { CookieOptions, Request } from "express";
+// This file is kept for compatibility but is not actively used in Next.js setup
+// The actual implementation is in lib/server/cookies.ts
+
+type CookieOptions = {
+  domain?: string;
+  httpOnly: boolean;
+  path: string;
+  sameSite: "none" | "lax" | "strict";
+  secure: boolean;
+};
+
+type Request = {
+  protocol?: string;
+  headers: {
+    [key: string]: string | string[] | undefined;
+  };
+};
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
 

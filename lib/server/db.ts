@@ -198,6 +198,7 @@ export type TransactionWithRelations = Transaction & {
   creditCard?: { id: number; name: string } | null;
   account?: { id: number; name: string } | null;
   user?: { id: number; name: string } | null;
+  attachments?: TransactionAttachment[];
 };
 
 function mapTransactionWithRelationsFromDb(row: any): TransactionWithRelations {
@@ -459,7 +460,7 @@ export async function getCategoryById(id: number): Promise<Category | null> {
   return mapCategoryFromDb(data);
 }
 
-export async function createCategory(data: Omit<Category, "id" | "createdAt" | "updatedAt">): Promise<Category> {
+export async function createCategory(data: Omit<Category, "id" | "createdAt" | "updatedAt" | "isDefault"> & { isDefault?: boolean }): Promise<Category> {
   const { data: result, error } = await supabaseServer
     .from('categories')
     .insert({
@@ -914,7 +915,7 @@ export async function getScheduledPaymentsByAccountId(accountId: number): Promis
   return (data || []).map(mapScheduledPaymentFromDb);
 }
 
-export async function createScheduledPayment(data: Omit<ScheduledPayment, "id" | "createdAt" | "updatedAt">): Promise<ScheduledPayment> {
+export async function createScheduledPayment(data: Omit<ScheduledPayment, "id" | "createdAt" | "updatedAt" | "isRecurring" | "isPriority"> & { isRecurring?: boolean; isPriority?: boolean }): Promise<ScheduledPayment> {
   const { data: result, error } = await supabaseServer
     .from('scheduled_payments')
     .insert({
@@ -925,9 +926,9 @@ export async function createScheduledPayment(data: Omit<ScheduledPayment, "id" |
       amount: data.amount,
       due_date: data.dueDate.toISOString().split('T')[0],
       is_paid: data.isPaid,
-      is_recurring: data.isRecurring,
+      is_recurring: data.isRecurring ?? false,
       recurrence_frequency: data.recurrenceFrequency,
-      is_priority: data.isPriority,
+      is_priority: data.isPriority ?? false,
     })
     .select()
     .single();
@@ -993,7 +994,7 @@ export async function getGoalsByAccountId(accountId: number): Promise<Goal[]> {
   return (data || []).map(mapGoalFromDb);
 }
 
-export async function createGoal(data: Omit<Goal, "id" | "createdAt" | "updatedAt">): Promise<Goal> {
+export async function createGoal(data: Omit<Goal, "id" | "createdAt" | "updatedAt" | "status"> & { status?: "active" | "completed" | "cancelled" }): Promise<Goal> {
   const { data: result, error } = await supabaseServer
     .from('goals')
     .insert({

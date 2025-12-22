@@ -4,12 +4,12 @@ import type { AppRouter } from "../../server/routers";
 
 export function getTRPCClient() {
   return createTRPCProxyClient<AppRouter>({
-    transformer: superjson,
     links: [
       httpBatchLink({
         url: process.env.NEXT_PUBLIC_APP_URL
           ? `${process.env.NEXT_PUBLIC_APP_URL}/api/trpc`
           : "http://localhost:3000/api/trpc",
+        transformer: superjson,
         fetch(input, init) {
           return fetch(input, {
             ...init,
