@@ -2,7 +2,9 @@
 
 import { useSystemPreferences } from "@/lib/i18n/preferences";
 
-type Dict = Record<string, string | Dict>;
+interface Dict {
+  [key: string]: string | Dict;
+}
 
 const messages: Record<"es" | "pt", Dict> = {
   es: {
