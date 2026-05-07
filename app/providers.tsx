@@ -2,7 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink, TRPCClientError } from "@trpc/client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import superjson from "superjson";
 import { trpc } from "@/lib/trpc/client";
 import { UNAUTHED_ERR_MSG } from "@shared/const";
@@ -60,6 +60,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
       }
     }
   });
+
+  useEffect(() => {
+    const language = localStorage.getItem("system-preference-language") || "es-PY";
+    document.documentElement.lang = language.startsWith("pt") ? "pt-BR" : "es";
+  }, []);
 
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>

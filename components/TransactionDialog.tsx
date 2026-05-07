@@ -18,6 +18,9 @@ import { toast } from "sonner";
 import { Loader2, X, Paperclip } from "lucide-react";
 import { format } from "date-fns";
 import { supabaseClient } from "@/lib/supabase/client";
+import { convertFromBaseCurrency, getAppCurrencySymbol, parseCurrencyInput } from "@/lib/i18n/currency";
+import { useSystemPreferences } from "@/lib/i18n/preferences";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 interface TransactionDialogProps {
   children: React.ReactNode;
@@ -27,11 +30,17 @@ interface TransactionDialogProps {
 }
 
 export default function TransactionDialog({ children, accountId, transaction, onSuccess }: TransactionDialogProps) {
+  const { locale } = useI18n();
+  const isPt = locale === "pt";
+  const { currency } = useSystemPreferences();
+  const currencySymbol = getAppCurrencySymbol(currency);
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<"income" | "expense">(transaction?.type || "expense");
   const [categoryId, setCategoryId] = useState<string>(transaction?.categoryId?.toString() || "");
   const [description, setDescription] = useState(transaction?.description || "");
-  const [amount, setAmount] = useState(transaction?.amount ? (transaction.amount / 100).toFixed(2) : "");
+  const [amount, setAmount] = useState(
+    transaction?.amount ? String(convertFromBaseCurrency(transaction.amount, currency)) : ""
+  );
   const [transactionDate, setTransactionDate] = useState(() => {
     if (transaction?.transactionDate) {
       // Format date in local timezone to avoid timezone issues
@@ -73,6 +82,28 @@ export default function TransactionDialog({ children, accountId, transaction, on
   // Filter categories by type
   const filteredCategories = categories?.filter((c) => c.type === type) || [];
 
+  useEffect(() => {
+    if (!open) return;
+    if (transaction) {
+      setType(transaction.type || "expense");
+      setCategoryId(transaction.categoryId?.toString() || "");
+      setDescription(transaction.description || "");
+      setAmount(transaction.amount ? String(convertFromBaseCurrency(transaction.amount, currency)) : "");
+      const date = transaction.transactionDate ? new Date(transaction.transactionDate) : new Date();
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      setTransactionDate(`${year}-${month}-${day}`);
+      setPaymentMethod(transaction.paymentMethod || "");
+      setStatus(transaction.status || "paid");
+      setExpenseType(transaction.expenseType || "variable");
+      setIsRecurring(transaction.isRecurring || false);
+      setCreditCardId(transaction.creditCardId?.toString() || "");
+    } else {
+      resetForm();
+    }
+  }, [open, transaction, currency]);
+
   // Reset category when type changes
   useEffect(() => {
     if (filteredCategories.length > 0 && !filteredCategories.find((c) => c.id.toString() === categoryId)) {
@@ -82,13 +113,12 @@ export default function TransactionDialog({ children, accountId, transaction, on
 
   const createMutation = trpc.transactions.create.useMutation({
     onSuccess: async (result) => {
-      toast.success("Transação criada com sucesso!");
-      
-      // Upload files after creation
+      toast.success(isPt ? "Transação criada com sucesso!" : "¡Transacción creada con éxito!");
+
       if (files.length > 0 && result.transactionId) {
         await uploadFiles(result.transactionId);
       }
-      
+
       setOpen(false);
       resetForm();
       utils.transactions.list.invalidate();
@@ -97,19 +127,18 @@ export default function TransactionDialog({ children, accountId, transaction, on
       onSuccess?.();
     },
     onError: (error) => {
-      toast.error(`Erro ao criar transação: ${error.message}`);
+      toast.error(`${isPt ? "Erro ao criar transação" : "Error al crear la transacción"}: ${error.message}`);
     },
   });
 
   const updateMutation = trpc.transactions.update.useMutation({
     onSuccess: async () => {
-      toast.success("Transação atualizada com sucesso!");
-      
-      // Upload files after update
+      toast.success(isPt ? "Transação atualizada com sucesso!" : "¡Transacción actualizada con éxito!");
+
       if (files.length > 0 && transaction?.id) {
         await uploadFiles(transaction.id);
       }
-      
+
       setOpen(false);
       utils.transactions.list.invalidate();
       utils.dashboard.summary.invalidate();
@@ -117,7 +146,7 @@ export default function TransactionDialog({ children, accountId, transaction, on
       onSuccess?.();
     },
     onError: (error) => {
-      toast.error(`Erro ao atualizar transação: ${error.message}`);
+      toast.error(`${isPt ? "Erro ao atualizar transação" : "Error al actualizar la transacción"}: ${error.message}`);
     },
   });
 
@@ -154,11 +183,10 @@ export default function TransactionDialog({ children, accountId, transaction, on
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
-      // Validar tamanho (máximo 10MB por arquivo)
       const maxSize = 10 * 1024 * 1024;
       const validFiles = newFiles.filter(file => {
         if (file.size > maxSize) {
-          toast.error(`Arquivo ${file.name} excede o tamanho máximo de 10MB`);
+      toast.error(isPt ? `O arquivo ${file.name} excede o tamanho máximo de 10MB` : `El archivo ${file.name} supera el tamaño máximo de 10MB`);
           return false;
         }
         return true;
@@ -174,10 +202,10 @@ export default function TransactionDialog({ children, accountId, transaction, on
   const handleDeleteAttachment = async (attachmentId: number) => {
     try {
       await deleteAttachmentMutation.mutateAsync({ id: attachmentId });
-      toast.success("Anexo removido com sucesso!");
+      toast.success(isPt ? "Anexo removido com sucesso!" : "¡Adjunto eliminado con éxito!");
       utils.transactions.getAttachments.invalidate({ transactionId: transaction?.id! });
     } catch (error: any) {
-      toast.error(`Erro ao remover anexo: ${error.message}`);
+      toast.error(`${isPt ? "Erro ao remover anexo" : "Error al eliminar el adjunto"}: ${error.message}`);
     }
   };
 
@@ -198,7 +226,7 @@ export default function TransactionDialog({ children, accountId, transaction, on
 
         if (!response.ok) {
           const error = await response.json();
-          throw new Error(error.error || "Erro ao fazer upload");
+          throw new Error(error.error || (isPt ? "Erro ao enviar arquivo" : "Error al subir el archivo"));
         }
 
         const data = await response.json();
@@ -211,10 +239,10 @@ export default function TransactionDialog({ children, accountId, transaction, on
           mimeType: data.mimeType,
         });
       }
-      toast.success("Arquivos enviados com sucesso!");
+      toast.success(isPt ? "Arquivos enviados com sucesso!" : "¡Archivos enviados con éxito!");
       setFiles([]);
     } catch (error: any) {
-      toast.error(`Erro ao fazer upload: ${error.message}`);
+      toast.error(`${isPt ? "Erro ao enviar arquivo" : "Error al subir el archivo"}: ${error.message}`);
     } finally {
       setUploadingFiles(false);
     }
@@ -224,43 +252,40 @@ export default function TransactionDialog({ children, accountId, transaction, on
     e.preventDefault();
 
     if (!description.trim()) {
-      toast.error("Por favor, informe a descrição");
+      toast.error(isPt ? "Por favor, informe a descrição" : "Por favor, ingresá la descripción");
       return;
     }
 
     if (!categoryId) {
-      toast.error("Por favor, selecione uma categoria");
+      toast.error(isPt ? "Por favor, selecione uma categoria" : "Por favor, seleccioná una categoría");
       return;
     }
 
-    if (!amount || parseFloat(amount) <= 0) {
-      toast.error("Por favor, informe um valor válido");
+    const amountValue = parseCurrencyInput(amount, { currency });
+    if (!Number.isFinite(amountValue) || amountValue <= 0) {
+      toast.error(isPt ? "Por favor, informe um valor válido" : "Por favor, ingresá un monto válido");
       return;
     }
-
-    const amountInCents = Math.round(parseFloat(amount) * 100);
 
     if (transaction) {
-      // Update existing transaction
       updateMutation.mutate({
         id: transaction.id,
         categoryId: parseInt(categoryId),
         creditCardId: creditCardId ? parseInt(creditCardId) : undefined,
         description: description.trim(),
-        amount: amountInCents,
+        amount: amountValue,
         transactionDate,
         paymentMethod: paymentMethod || undefined,
         status,
         expenseType: type === "expense" ? expenseType : undefined,
       });
     } else {
-      // Create new transaction
       createMutation.mutate({
         accountId,
         categoryId: parseInt(categoryId),
         creditCardId: creditCardId ? parseInt(creditCardId) : undefined,
         description: description.trim(),
-        amount: amountInCents,
+        amount: amountValue,
         type,
         transactionDate,
         paymentMethod: paymentMethod || undefined,
@@ -279,9 +304,11 @@ export default function TransactionDialog({ children, accountId, transaction, on
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>{transaction ? "Editar Transação" : "Nova Transação"}</DialogTitle>
+            <DialogTitle>{transaction ? (isPt ? "Editar Transação" : "Editar Transacción") : (isPt ? "Nova Transação" : "Nueva Transacción")}</DialogTitle>
             <DialogDescription>
-              {transaction ? "Atualize os dados da transação" : "Registre uma nova receita ou despesa"}
+              {transaction
+                ? isPt ? "Atualize os dados da transação" : "Actualizá los datos de la transacción"
+                : isPt ? "Registre uma nova receita ou despesa" : "Registrá un nuevo ingreso o gasto"}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -290,23 +317,23 @@ export default function TransactionDialog({ children, accountId, transaction, on
               <div className="grid grid-cols-2 gap-4">
                 {/* Type */}
                 <div className="grid gap-2">
-                  <Label htmlFor="type">Tipo</Label>
+                  <Label htmlFor="type">{isPt ? "Tipo" : "Tipo"}</Label>
                   <Select value={type} onValueChange={(value) => setType(value as "income" | "expense")} disabled={isPending}>
                     <SelectTrigger className="w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="income">Receita</SelectItem>
-                      <SelectItem value="expense">Despesa</SelectItem>
+                      <SelectItem value="income">{isPt ? "Receita" : "Ingreso"}</SelectItem>
+                      <SelectItem value="expense">{isPt ? "Despesa" : "Gasto"}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 {/* Category */}
                 <div className="grid gap-2">
-                  <Label htmlFor="category">Categoria</Label>
+                  <Label htmlFor="category">{isPt ? "Categoria" : "Categoría"}</Label>
                   <Select value={categoryId} onValueChange={setCategoryId} disabled={isPending}>
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Selecione uma categoria" />
+                      <SelectValue placeholder={isPt ? "Selecione uma categoria" : "Seleccioná una categoría"} />
                     </SelectTrigger>
                     <SelectContent>
                       {filteredCategories.map((category) => (
@@ -321,10 +348,10 @@ export default function TransactionDialog({ children, accountId, transaction, on
             ) : (
               /* Category - Full width when editing */
               <div className="grid gap-2">
-                <Label htmlFor="category">Categoria</Label>
+                <Label htmlFor="category">{isPt ? "Categoria" : "Categoría"}</Label>
                 <Select value={categoryId} onValueChange={setCategoryId} disabled={isPending}>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Selecione uma categoria" />
+                    <SelectValue placeholder={isPt ? "Selecione uma categoria" : "Seleccioná una categoría"} />
                   </SelectTrigger>
                   <SelectContent>
                     {filteredCategories.map((category) => (
@@ -339,10 +366,10 @@ export default function TransactionDialog({ children, accountId, transaction, on
 
             {/* Description */}
             <div className="grid gap-2">
-              <Label htmlFor="description">Descrição</Label>
+              <Label htmlFor="description">{isPt ? "Descrição" : "Descripción"}</Label>
               <Textarea
                 id="description"
-                placeholder="Ex: Compra no supermercado"
+                placeholder={isPt ? "Ex: Compra no supermercado" : "Ej: Compra en el supermercado"}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 disabled={isPending}
@@ -354,13 +381,13 @@ export default function TransactionDialog({ children, accountId, transaction, on
             {/* Amount and Date */}
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="amount">Valor (R$)</Label>
+                <Label htmlFor="amount">{isPt ? "Valor" : "Monto"} ({currencySymbol})</Label>
                 <Input
                   id="amount"
                   type="number"
-                  step="0.01"
+                  step="1"
                   min="0"
-                  placeholder="0,00"
+                  placeholder="0"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   disabled={isPending}
@@ -368,7 +395,7 @@ export default function TransactionDialog({ children, accountId, transaction, on
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="date">Data</Label>
+                <Label htmlFor="date">{isPt ? "Data" : "Fecha"}</Label>
                 <Input
                   id="date"
                   type="date"
@@ -383,26 +410,26 @@ export default function TransactionDialog({ children, accountId, transaction, on
             {/* Payment Method and Credit Card */}
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="paymentMethod">Forma de Pagamento (opcional)</Label>
+                <Label htmlFor="paymentMethod">{isPt ? "Forma de Pagamento (opcional)" : "Forma de Pago (opcional)"}</Label>
                 <Select value={paymentMethod || undefined} onValueChange={(value) => setPaymentMethod(value || "")} disabled={isPending}>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Selecione..." />
+                    <SelectValue placeholder={isPt ? "Selecionar..." : "Seleccionar..."} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="pix">PIX</SelectItem>
-                    <SelectItem value="dinheiro">Dinheiro</SelectItem>
-                    <SelectItem value="debito">Cartão de Débito</SelectItem>
-                    <SelectItem value="credito">Cartão de Crédito</SelectItem>
-                    <SelectItem value="transferencia">Transferência</SelectItem>
-                    <SelectItem value="boleto">Boleto</SelectItem>
+                    <SelectItem value="dinheiro">{isPt ? "Dinheiro" : "Efectivo"}</SelectItem>
+                    <SelectItem value="debito">{isPt ? "Cartão de Débito" : "Tarjeta de Débito"}</SelectItem>
+                    <SelectItem value="credito">{isPt ? "Cartão de Crédito" : "Tarjeta de Crédito"}</SelectItem>
+                    <SelectItem value="transferencia">{isPt ? "Transferência" : "Transferencia"}</SelectItem>
+                    <SelectItem value="boleto">{isPt ? "Boleto" : "Boleta"}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="creditCard">Cartão de Crédito (opcional)</Label>
+                <Label htmlFor="creditCard">{isPt ? "Cartão de Crédito (opcional)" : "Tarjeta de Crédito (opcional)"}</Label>
                 <Select value={creditCardId || undefined} onValueChange={(value) => setCreditCardId(value || "")} disabled={isPending}>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Nenhum" />
+                    <SelectValue placeholder={isPt ? "Nenhum" : "Ninguna"} />
                   </SelectTrigger>
                   <SelectContent>
                     {creditCards && creditCards.length > 0 ? (
@@ -412,7 +439,7 @@ export default function TransactionDialog({ children, accountId, transaction, on
                         </SelectItem>
                       ))
                     ) : (
-                      <div className="px-2 py-1.5 text-sm text-muted-foreground">Nenhum cartão disponível</div>
+                      <div className="px-2 py-1.5 text-sm text-muted-foreground">{isPt ? "Não há cartões disponíveis" : "No hay tarjetas disponibles"}</div>
                     )}
                   </SelectContent>
                 </Select>
@@ -422,20 +449,20 @@ export default function TransactionDialog({ children, accountId, transaction, on
             {/* Status and Expense Type */}
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="status">Situação</Label>
+                <Label htmlFor="status">{isPt ? "Status" : "Estado"}</Label>
                 <Select value={status} onValueChange={(value) => setStatus(value as "paid" | "pending")} disabled={isPending}>
                   <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="paid">Pago</SelectItem>
-                    <SelectItem value="pending">Pendente</SelectItem>
+                    <SelectItem value="paid">{isPt ? "Pago" : "Pagado"}</SelectItem>
+                    <SelectItem value="pending">{isPt ? "Pendente" : "Pendiente"}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               {type === "expense" && (
                 <div className="grid gap-2">
-                  <Label htmlFor="expenseType">Tipo de Despesa</Label>
+                  <Label htmlFor="expenseType">{isPt ? "Tipo de Despesa" : "Tipo de Gasto"}</Label>
                   <Select
                     value={expenseType}
                     onValueChange={(value) => setExpenseType(value as "fixed" | "variable")}
@@ -445,8 +472,8 @@ export default function TransactionDialog({ children, accountId, transaction, on
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="fixed">Fixa</SelectItem>
-                      <SelectItem value="variable">Variável</SelectItem>
+                      <SelectItem value="fixed">{isPt ? "Fixo" : "Fijo"}</SelectItem>
+                      <SelectItem value="variable">{isPt ? "Variável" : "Variable"}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -455,7 +482,7 @@ export default function TransactionDialog({ children, accountId, transaction, on
 
             {/* File Upload */}
             <div className="grid gap-2">
-              <Label htmlFor="files">Anexos (opcional)</Label>
+              <Label htmlFor="files">{isPt ? "Anexos (opcional)" : "Adjuntos (opcional)"}</Label>
               <Input
                 id="files"
                 type="file"
@@ -466,9 +493,11 @@ export default function TransactionDialog({ children, accountId, transaction, on
                 accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
               />
               <p className="text-xs text-muted-foreground">
-                Formatos aceitos: PDF, JPG, PNG, DOC, DOCX. Máximo 10MB por arquivo.
+                {isPt
+                  ? "Formatos aceitos: PDF, JPG, PNG, DOC, DOCX. Máximo 10MB por arquivo."
+                  : "Formatos aceptados: PDF, JPG, PNG, DOC, DOCX. Máximo 10MB por archivo."}
               </p>
-              
+
               {/* Selected files */}
               {files.length > 0 && (
                 <div className="space-y-2 mt-2">
@@ -498,7 +527,7 @@ export default function TransactionDialog({ children, accountId, transaction, on
               {/* Existing attachments (when editing) */}
               {transaction && attachments && attachments.length > 0 && (
                 <div className="space-y-2 mt-2">
-                  <Label className="text-sm">Anexos existentes:</Label>
+                  <Label className="text-sm">{isPt ? "Anexos existentes:" : "Adjuntos existentes:"}</Label>
                   {attachments.map((attachment) => (
                     <div key={attachment.id} className="flex items-center justify-between p-2 bg-muted rounded-md">
                       <div className="flex items-center gap-2">
@@ -532,11 +561,11 @@ export default function TransactionDialog({ children, accountId, transaction, on
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
-              Cancelar
+              {isPt ? "Cancelar" : "Cancelar"}
             </Button>
             <Button type="submit" disabled={isPending || uploadingFiles}>
               {(isPending || uploadingFiles) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {uploadingFiles ? "Enviando arquivos..." : transaction ? "Atualizar" : "Criar"}
+              {uploadingFiles ? (isPt ? "Enviando arquivos..." : "Enviando archivos...") : transaction ? (isPt ? "Atualizar" : "Actualizar") : (isPt ? "Criar" : "Crear")}
             </Button>
           </DialogFooter>
         </form>

@@ -5,8 +5,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 export const metadata: Metadata = {
-  title: "Sistema de Controle Financeiro",
-  description: "Sistema completo de controle financeiro pessoal e empresarial",
+  title: "Sistema de Control Financiero",
+  description: "Sistema completo de control financiero personal y empresarial",
   icons: {
     icon: "/images/favicon.jpg",
     shortcut: "/images/favicon.jpg",
@@ -20,7 +20,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
+    <html lang="es" suppressHydrationWarning>
       <body>
         <Providers>
           <TooltipProvider>

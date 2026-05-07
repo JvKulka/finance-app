@@ -11,7 +11,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowDownIcon, ArrowUpIcon, Plus, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import { useMemo, useState } from "react";
 import { format, startOfMonth, endOfMonth, subDays, startOfDay, endOfDay } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { getDateLocale } from "@/lib/i18n/date";
+import { formatCurrency } from "@/lib/i18n/currency";
+import { useSystemPreferences } from "@/lib/i18n/preferences";
+import { useI18n } from "@/lib/i18n/useI18n";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, Legend, Line, LineChart, XAxis, YAxis, CartesianGrid } from "recharts";
 
 type PeriodFilter = "today" | "last7days" | "currentMonth" | "custom";
@@ -24,6 +27,9 @@ type ExpenseByCategory = {
 };
 
 export default function Dashboard() {
+  const { language, currency } = useSystemPreferences();
+  const { t } = useI18n();
+  const dateLocale = getDateLocale(language);
   const [selectedAccount, setSelectedAccount] = useState<number | null>(null);
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("currentMonth");
   const [customStartDate, setCustomStartDate] = useState("");
@@ -103,13 +109,6 @@ export default function Dashboard() {
     }
   );
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value / 100);
-  };
-
   const isLoading = accountsLoading || summaryLoading || expensesLoading;
 
   if (accountsLoading) {
@@ -129,9 +128,9 @@ export default function Dashboard() {
     return (
       <div className="p-8 space-y-6">
         <div className="text-center space-y-4">
-          <p className="text-destructive font-medium">Erro ao carregar contas</p>
+          <p className="text-destructive font-medium">Error al cargar las cuentas</p>
           <p className="text-sm text-muted-foreground">{accountsError.message}</p>
-          <Button onClick={() => window.location.reload()}>Tentar novamente</Button>
+          <Button onClick={() => window.location.reload()}>Reintentar</Button>
         </div>
       </div>
     );
@@ -141,9 +140,9 @@ export default function Dashboard() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center space-y-4">
-          <p className="text-muted-foreground">Você ainda não possui nenhuma conta.</p>
+          <p className="text-muted-foreground">Aún no tenés ninguna cuenta.</p>
           <CreateAccountDialog>
-            <Button>Criar primeira conta</Button>
+            <Button>Crear primera cuenta</Button>
           </CreateAccountDialog>
         </div>
       </div>
@@ -155,13 +154,13 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-primary">Dashboard</h1>
-          <p className="text-muted-foreground mt-1">Visão geral das suas finanças</p>
+          <h1 className="text-3xl font-bold text-primary">{t("dashboard.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("dashboard.subtitle")}</p>
         </div>
         <TransactionDialog accountId={selectedAccount!}>
           <Button className="gap-2">
             <Plus className="w-4 h-4" />
-            Nova Transação
+            {t("dashboard.newTransaction")}
           </Button>
         </TransactionDialog>
       </div>
@@ -177,7 +176,7 @@ export default function Dashboard() {
             setCustomEndDate("");
           }}
         >
-          Hoje
+          {t("dashboard.today")}
         </Button>
         <Button
           variant={periodFilter === "last7days" ? "default" : "outline"}
@@ -188,7 +187,7 @@ export default function Dashboard() {
             setCustomEndDate("");
           }}
         >
-          Últimos 7 dias
+          {t("dashboard.last7Days")}
         </Button>
         <Button
           variant={periodFilter === "currentMonth" ? "default" : "outline"}
@@ -199,21 +198,21 @@ export default function Dashboard() {
             setCustomEndDate("");
           }}
         >
-          Mês atual
+          {t("dashboard.currentMonth")}
         </Button>
         <Button
           variant={periodFilter === "custom" ? "default" : "outline"}
           size="sm"
           onClick={() => setPeriodFilter("custom")}
         >
-          Personalizado
+          {t("dashboard.custom")}
         </Button>
 
         {/* Custom Date Range Inputs */}
         {periodFilter === "custom" && (
           <>
             <div className="grid gap-2">
-              <Label className="text-sm">Data Inicial</Label>
+              <Label className="text-sm">{t("dashboard.startDate")}</Label>
               <Input
                 type="date"
                 value={customStartDate}
@@ -222,7 +221,7 @@ export default function Dashboard() {
               />
             </div>
             <div className="grid gap-2">
-              <Label className="text-sm">Data Final</Label>
+              <Label className="text-sm">{t("dashboard.endDate")}</Label>
               <Input
                 type="date"
                 value={customEndDate}
@@ -239,7 +238,7 @@ export default function Dashboard() {
         {/* Balance Card */}
         <Card className="bg-primary/10 border-primary/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Saldo Atual</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("dashboard.balance")}</CardTitle>
             <Wallet className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
@@ -248,11 +247,11 @@ export default function Dashboard() {
             ) : (
               <>
                 <div className="text-2xl font-bold text-primary">
-                  {formatCurrency(summary?.balance || 0)}
+                  {formatCurrency(summary?.balance || 0, { language, currency })}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {format(new Date(dateRange.startDate), "dd MMM", { locale: ptBR })} -{" "}
-                  {format(new Date(dateRange.endDate), "dd MMM", { locale: ptBR })}
+                  {format(new Date(dateRange.startDate), "dd MMM", { locale: dateLocale })} -{" "}
+                  {format(new Date(dateRange.endDate), "dd MMM", { locale: dateLocale })}
                 </p>
               </>
             )}
@@ -262,7 +261,7 @@ export default function Dashboard() {
         {/* Income Card */}
         <Card className="border-green-500/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Receitas</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("dashboard.income")}</CardTitle>
             <TrendingUp className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
@@ -271,11 +270,11 @@ export default function Dashboard() {
             ) : (
               <>
                 <div className="text-2xl font-bold text-green-500">
-                  {formatCurrency(summary?.income || 0)}
+                  {formatCurrency(summary?.income || 0, { language, currency })}
                 </div>
                 <div className="flex items-center text-xs text-muted-foreground mt-1">
                   <ArrowUpIcon className="w-3 h-3 mr-1 text-green-500" />
-                  Entradas do período
+                  {t("dashboard.periodIncome")}
                 </div>
               </>
             )}
@@ -285,7 +284,7 @@ export default function Dashboard() {
         {/* Expense Card */}
         <Card className="border-destructive/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Despesas</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("dashboard.expense")}</CardTitle>
             <TrendingDown className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
@@ -294,11 +293,11 @@ export default function Dashboard() {
             ) : (
               <>
                 <div className="text-2xl font-bold text-destructive">
-                  {formatCurrency(summary?.expense || 0)}
+                  {formatCurrency(summary?.expense || 0, { language, currency })}
                 </div>
                 <div className="flex items-center text-xs text-muted-foreground mt-1">
                   <ArrowDownIcon className="w-3 h-3 mr-1 text-destructive" />
-                  Saídas do período
+                  {t("dashboard.periodExpense")}
                 </div>
               </>
             )}
@@ -311,7 +310,7 @@ export default function Dashboard() {
         {/* Expenses by Category - Pie Chart */}
         <Card>
           <CardHeader>
-            <CardTitle>Despesas por Categoria</CardTitle>
+            <CardTitle>{t("dashboard.expensesByCategory")}</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -326,14 +325,16 @@ export default function Dashboard() {
                     cx="50%"
                     cy="50%"
                     outerRadius={100}
-                    label={(entry: ExpenseByCategory) => `${entry.categoryName}: ${formatCurrency(entry.total)}`}
+                    label={(entry: ExpenseByCategory) =>
+                      `${entry.categoryName}: ${formatCurrency(entry.total, { language, currency })}`
+                    }
                   >
                     {expensesByCategory.map((entry: ExpenseByCategory, index: number) => (
                       <Cell key={`cell-${index}`} fill={entry.categoryColor} />
                     ))}
                   </Pie>
                   <Tooltip
-                    formatter={(value: number) => formatCurrency(value)}
+                    formatter={(value: number) => formatCurrency(value, { language, currency })}
                     contentStyle={{
                       backgroundColor: "oklch(0.19 0.02 240)",
                       border: "1px solid oklch(0.25 0.02 240)",
@@ -345,7 +346,7 @@ export default function Dashboard() {
               </ResponsiveContainer>
             ) : (
               <div className="h-64 flex items-center justify-center text-muted-foreground">
-                Nenhuma despesa neste período
+                {t("dashboard.noExpenses")}
               </div>
             )}
           </CardContent>
@@ -354,7 +355,7 @@ export default function Dashboard() {
         {/* Result Card */}
         <Card>
           <CardHeader>
-            <CardTitle>Resultado do Período</CardTitle>
+            <CardTitle>{t("dashboard.periodResult")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {isLoading ? (
@@ -367,7 +368,7 @@ export default function Dashboard() {
                       (summary?.balance || 0) >= 0 ? "text-primary" : "text-destructive"
                     }`}
                   >
-                    {formatCurrency(summary?.balance || 0)}
+                    {formatCurrency(summary?.balance || 0, { language, currency })}
                   </div>
                   {summary && summary.income > 0 && (
                     <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-destructive/10 text-destructive text-sm">
@@ -377,12 +378,16 @@ export default function Dashboard() {
                 </div>
                 <div className="space-y-2 pt-4 border-t">
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Receitas</span>
-                    <span className="font-medium text-green-500">{formatCurrency(summary?.income || 0)}</span>
+                    <span className="text-muted-foreground">Ingresos</span>
+                    <span className="font-medium text-green-500">
+                      {formatCurrency(summary?.income || 0, { language, currency })}
+                    </span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Despesas</span>
-                    <span className="font-medium text-destructive">{formatCurrency(summary?.expense || 0)}</span>
+                    <span className="text-muted-foreground">Gastos</span>
+                    <span className="font-medium text-destructive">
+                      {formatCurrency(summary?.expense || 0, { language, currency })}
+                    </span>
                   </div>
                 </div>
               </>

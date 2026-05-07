@@ -25,12 +25,12 @@ export async function POST(request: NextRequest) {
     const sessionCookie = cookies.get(COOKIE_NAME);
 
     if (!sessionCookie) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
     const session = await sdk.verifySession(sessionCookie);
     if (!session) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
     const formData = await request.formData();
@@ -38,17 +38,16 @@ export async function POST(request: NextRequest) {
     const transactionId = formData.get("transactionId") as string;
 
     if (!file) {
-      return NextResponse.json({ error: "Nenhum arquivo enviado" }, { status: 400 });
+      return NextResponse.json({ error: "No se envió ningún archivo" }, { status: 400 });
     }
 
     if (!transactionId) {
-      return NextResponse.json({ error: "ID da transação é obrigatório" }, { status: 400 });
+      return NextResponse.json({ error: "El ID de la transacción es obligatorio" }, { status: 400 });
     }
 
-    // Validar tamanho do arquivo (máximo 10MB)
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    const maxSize = 10 * 1024 * 1024;
     if (file.size > maxSize) {
-      return NextResponse.json({ error: "Arquivo muito grande. Máximo: 10MB" }, { status: 400 });
+      return NextResponse.json({ error: "Archivo demasiado grande. Máximo: 10MB" }, { status: 400 });
     }
 
     // Gerar nome único para o arquivo
@@ -71,8 +70,8 @@ export async function POST(request: NextRequest) {
       });
 
     if (uploadError) {
-      console.error("Erro ao fazer upload:", uploadError);
-      return NextResponse.json({ error: "Erro ao fazer upload do arquivo" }, { status: 500 });
+      console.error("Error al subir el archivo:", uploadError);
+      return NextResponse.json({ error: "Error al subir el archivo" }, { status: 500 });
     }
 
     // Obter URL pública do arquivo
@@ -89,9 +88,9 @@ export async function POST(request: NextRequest) {
       url: urlData.publicUrl,
     });
   } catch (error) {
-    console.error("Erro no upload:", error);
+    console.error("Error en el upload:", error);
     return NextResponse.json(
-      { error: "Erro interno do servidor" },
+      { error: "Error interno del servidor" },
       { status: 500 }
     );
   }

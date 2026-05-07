@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import * as Icons from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 interface CategoryDialogProps {
   children: React.ReactNode;
@@ -61,18 +62,20 @@ const ICON_OPTIONS = [
 
 const COLOR_OPTIONS = [
   { name: "Verde", value: "#2ECC71" },
-  { name: "Vermelho", value: "#EF4444" },
+  { name: "Rojo", value: "#EF4444" },
   { name: "Azul", value: "#3B82F6" },
-  { name: "Roxo", value: "#8B5CF6" },
+  { name: "Violeta", value: "#8B5CF6" },
   { name: "Rosa", value: "#EC4899" },
-  { name: "Laranja", value: "#F97316" },
-  { name: "Amarelo", value: "#F59E0B" },
-  { name: "Ciano", value: "#06B6D4" },
-  { name: "Cinza", value: "#64748B" },
+  { name: "Naranja", value: "#F97316" },
+  { name: "Amarillo", value: "#F59E0B" },
+  { name: "Cian", value: "#06B6D4" },
+  { name: "Gris", value: "#64748B" },
   { name: "Índigo", value: "#6366F1" },
 ];
 
 export default function CategoryDialog({ children, accountId, category, onSuccess }: CategoryDialogProps) {
+  const { locale } = useI18n();
+  const isPt = locale === "pt";
   const [open, setOpen] = useState(!!category);
   const [name, setName] = useState(category?.name || "");
   const [type, setType] = useState<"income" | "expense">(category?.type || "expense");
@@ -83,27 +86,27 @@ export default function CategoryDialog({ children, accountId, category, onSucces
 
   const createMutation = trpc.categories.create.useMutation({
     onSuccess: () => {
-      toast.success("Categoria criada com sucesso!");
+      toast.success(isPt ? "Categoria criada com sucesso!" : "¡Categoría creada con éxito!");
       setOpen(false);
       resetForm();
       utils.categories.list.invalidate();
       onSuccess?.();
     },
     onError: (error) => {
-      toast.error(`Erro ao criar categoria: ${error.message}`);
+      toast.error(`${isPt ? "Erro ao criar categoria" : "Error al crear la categoría"}: ${error.message}`);
     },
   });
 
   const updateMutation = trpc.categories.update.useMutation({
     onSuccess: () => {
-      toast.success("Categoria atualizada com sucesso!");
+      toast.success(isPt ? "Categoria atualizada com sucesso!" : "¡Categoría actualizada con éxito!");
       setOpen(false);
       resetForm();
       utils.categories.list.invalidate();
       onSuccess?.();
     },
     onError: (error) => {
-      toast.error(`Erro ao atualizar categoria: ${error.message}`);
+      toast.error(`${isPt ? "Erro ao atualizar categoria" : "Error al actualizar la categoría"}: ${error.message}`);
     },
   });
 
@@ -137,7 +140,7 @@ export default function CategoryDialog({ children, accountId, category, onSucces
     e.preventDefault();
 
     if (!name.trim()) {
-      toast.error("Por favor, informe o nome da categoria");
+      toast.error(isPt ? "Por favor, informe o nome da categoria" : "Por favor, ingresá el nombre de la categoría");
       return;
     }
 
@@ -185,18 +188,20 @@ export default function CategoryDialog({ children, accountId, category, onSucces
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>{category ? "Editar Categoria" : "Nova Categoria"}</DialogTitle>
+            <DialogTitle>{category ? (isPt ? "Editar Categoria" : "Editar Categoría") : (isPt ? "Nova Categoria" : "Nueva Categoría")}</DialogTitle>
             <DialogDescription>
-              {category ? "Atualize os dados da categoria" : "Crie uma nova categoria para organizar suas transações"}
+              {category
+                ? isPt ? "Atualize os dados da categoria" : "Actualizá los datos de la categoría"
+                : isPt ? "Crie uma nova categoria para organizar suas transações" : "Creá una nueva categoría para organizar tus transacciones"}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             {/* Name */}
             <div className="grid gap-2">
-              <Label htmlFor="name">Nome da Categoria</Label>
+              <Label htmlFor="name">{isPt ? "Nome da Categoria" : "Nombre de la Categoría"}</Label>
               <Input
                 id="name"
-                placeholder="Ex: Alimentação, Transporte"
+                placeholder={isPt ? "Ex: Alimentação, Transporte" : "Ej: Alimentación, Transporte"}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 disabled={isPending}
@@ -206,14 +211,14 @@ export default function CategoryDialog({ children, accountId, category, onSucces
             {/* Type (only for new categories) */}
             {!category && (
               <div className="grid gap-2">
-                <Label htmlFor="type">Tipo</Label>
+                <Label htmlFor="type">{isPt ? "Tipo" : "Tipo"}</Label>
                 <Select value={type} onValueChange={(value) => setType(value as "income" | "expense")} disabled={isPending}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="income">Receita</SelectItem>
-                    <SelectItem value="expense">Despesa</SelectItem>
+                    <SelectItem value="income">{isPt ? "Receita" : "Ingreso"}</SelectItem>
+                    <SelectItem value="expense">{isPt ? "Despesa" : "Gasto"}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -221,7 +226,7 @@ export default function CategoryDialog({ children, accountId, category, onSucces
 
             {/* Icon Preview */}
             <div className="grid gap-2">
-              <Label>Pré-visualização</Label>
+              <Label>{isPt ? "Pré-visualização" : "Vista previa"}</Label>
               <div className="flex items-center gap-4 p-4 border rounded-lg">
                 <div
                   className="w-16 h-16 rounded-full flex items-center justify-center"
@@ -230,9 +235,9 @@ export default function CategoryDialog({ children, accountId, category, onSucces
                   <SelectedIcon className="w-8 h-8" style={{ color }} />
                 </div>
                 <div>
-                  <p className="font-semibold">{name || "Nome da Categoria"}</p>
+                  <p className="font-semibold">{name || (isPt ? "Nome da Categoria" : "Nombre de la Categoría")}</p>
                   <p className="text-sm text-muted-foreground">
-                    {type === "income" ? "Receita" : "Despesa"}
+                    {type === "income" ? (isPt ? "Receita" : "Ingreso") : (isPt ? "Despesa" : "Gasto")}
                   </p>
                 </div>
               </div>
@@ -240,7 +245,7 @@ export default function CategoryDialog({ children, accountId, category, onSucces
 
             {/* Color */}
             <div className="grid gap-2">
-              <Label htmlFor="color">Cor</Label>
+              <Label htmlFor="color">Color</Label>
               <div className="grid grid-cols-5 gap-2">
                 {COLOR_OPTIONS.map((colorOption) => (
                   <button
@@ -260,7 +265,7 @@ export default function CategoryDialog({ children, accountId, category, onSucces
 
             {/* Icon */}
             <div className="grid gap-2">
-              <Label htmlFor="icon">Ícone</Label>
+              <Label htmlFor="icon">{isPt ? "Ícone" : "Ícono"}</Label>
               <ScrollArea className="h-48 border rounded-lg p-2">
                 <div className="grid grid-cols-6 gap-2">
                   {ICON_OPTIONS.map((iconName) => {
@@ -286,11 +291,11 @@ export default function CategoryDialog({ children, accountId, category, onSucces
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
-              Cancelar
+              {isPt ? "Cancelar" : "Cancelar"}
             </Button>
             <Button type="submit" disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {category ? "Atualizar" : "Criar"}
+              {category ? (isPt ? "Atualizar" : "Actualizar") : (isPt ? "Criar" : "Crear")}
             </Button>
           </DialogFooter>
         </form>

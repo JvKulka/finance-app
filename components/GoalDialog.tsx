@@ -15,6 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { trpc } from "@/lib/trpc/client";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { convertFromBaseCurrency, getAppCurrencySymbol, parseCurrencyInput } from "@/lib/i18n/currency";
+import { useSystemPreferences } from "@/lib/i18n/preferences";
 
 interface GoalDialogProps {
   children: React.ReactNode;
@@ -24,10 +26,16 @@ interface GoalDialogProps {
 }
 
 export default function GoalDialog({ children, accountId, goal, onSuccess }: GoalDialogProps) {
+  const { currency } = useSystemPreferences();
+  const currencySymbol = getAppCurrencySymbol(currency);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(goal?.name || "");
-  const [targetAmount, setTargetAmount] = useState(goal?.targetAmount ? (goal.targetAmount / 100).toFixed(2) : "");
-  const [currentAmount, setCurrentAmount] = useState(goal?.currentAmount ? (goal.currentAmount / 100).toFixed(2) : "0.00");
+  const [targetAmount, setTargetAmount] = useState(
+    goal?.targetAmount ? String(convertFromBaseCurrency(goal.targetAmount, currency)) : ""
+  );
+  const [currentAmount, setCurrentAmount] = useState(
+    goal?.currentAmount ? String(convertFromBaseCurrency(goal.currentAmount, currency)) : "0"
+  );
   const [deadline, setDeadline] = useState(
     goal?.deadline ? new Date(goal.deadline).toISOString().split("T")[0] : ""
   );
@@ -47,41 +55,41 @@ export default function GoalDialog({ children, accountId, goal, onSuccess }: Goa
     if (open && !goal) {
       setName("");
       setTargetAmount("");
-      setCurrentAmount("0.00");
+      setCurrentAmount("0");
       setDeadline("");
       setType("savings");
       setCategoryId("");
     } else if (open && goal) {
       setName(goal.name || "");
-      setTargetAmount(goal.targetAmount ? (goal.targetAmount / 100).toFixed(2) : "");
-      setCurrentAmount(goal.currentAmount ? (goal.currentAmount / 100).toFixed(2) : "0.00");
+      setTargetAmount(goal.targetAmount ? String(convertFromBaseCurrency(goal.targetAmount, currency)) : "");
+      setCurrentAmount(goal.currentAmount ? String(convertFromBaseCurrency(goal.currentAmount, currency)) : "0");
       setDeadline(goal.deadline ? new Date(goal.deadline).toISOString().split("T")[0] : "");
       setType(goal.type || "savings");
       setCategoryId(goal.categoryId?.toString() || "");
     }
-  }, [open, goal]);
+  }, [open, goal, currency]);
 
   const createMutation = trpc.goals.create.useMutation({
     onSuccess: () => {
-      toast.success("Meta criada com sucesso!");
+      toast.success("¡Objetivo creado con éxito!");
       setOpen(false);
       utils.goals.list.invalidate();
       onSuccess?.();
     },
     onError: (error) => {
-      toast.error(`Erro ao criar meta: ${error.message}`);
+      toast.error(`Error al crear el objetivo: ${error.message}`);
     },
   });
 
   const updateMutation = trpc.goals.update.useMutation({
     onSuccess: () => {
-      toast.success("Meta atualizada com sucesso!");
+      toast.success("¡Objetivo actualizado con éxito!");
       setOpen(false);
       utils.goals.list.invalidate();
       onSuccess?.();
     },
     onError: (error) => {
-      toast.error(`Erro ao atualizar meta: ${error.message}`);
+      toast.error(`Error al actualizar el objetivo: ${error.message}`);
     },
   });
 
@@ -89,33 +97,32 @@ export default function GoalDialog({ children, accountId, goal, onSuccess }: Goa
     e.preventDefault();
 
     if (!name.trim()) {
-      toast.error("Por favor, informe o nome da meta");
+      toast.error("Por favor, ingresá el nombre del objetivo");
       return;
     }
 
-    if (!targetAmount || parseFloat(targetAmount) <= 0) {
-      toast.error("Por favor, informe um valor alvo válido");
+    const targetValue = parseCurrencyInput(targetAmount, { currency });
+    if (!Number.isFinite(targetValue) || targetValue <= 0) {
+      toast.error("Por favor, ingresá un monto objetivo válido");
       return;
     }
 
-    const targetAmountInCents = Math.round(parseFloat(targetAmount) * 100);
-    const currentAmountInCents = Math.round(parseFloat(currentAmount || "0") * 100);
+    const currentRaw = parseCurrencyInput(currentAmount || "0", { currency });
+    const currentValue = Number.isFinite(currentRaw) ? Math.max(currentRaw, 0) : 0;
 
     if (goal) {
-      // Update existing goal
       updateMutation.mutate({
         id: goal.id,
         name: name.trim(),
-        targetAmount: targetAmountInCents,
-        currentAmount: currentAmountInCents,
+        targetAmount: targetValue,
+        currentAmount: currentValue,
         deadline: deadline || undefined,
       });
     } else {
-      // Create new goal
       createMutation.mutate({
         accountId,
         name: name.trim(),
-        targetAmount: targetAmountInCents,
+        targetAmount: targetValue,
         deadline: deadline || undefined,
         type,
         categoryId: categoryId ? parseInt(categoryId) : undefined,
@@ -131,18 +138,18 @@ export default function GoalDialog({ children, accountId, goal, onSuccess }: Goa
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>{goal ? "Editar Meta" : "Nova Meta"}</DialogTitle>
+            <DialogTitle>{goal ? "Editar Objetivo" : "Nuevo Objetivo"}</DialogTitle>
             <DialogDescription>
-              {goal ? "Atualize os dados da meta" : "Crie uma nova meta financeira"}
+              {goal ? "Actualizá los datos del objetivo" : "Creá un nuevo objetivo financiero"}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             {/* Name */}
             <div className="grid gap-2">
-              <Label htmlFor="name">Nome da Meta</Label>
+              <Label htmlFor="name">Nombre del Objetivo</Label>
               <Input
                 id="name"
-                placeholder="Ex: Reserva de emergência, Viagem"
+                placeholder="Ej: Fondo de emergencia, Viaje"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 disabled={isPending}
@@ -158,10 +165,10 @@ export default function GoalDialog({ children, accountId, goal, onSuccess }: Goa
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="savings">Economia</SelectItem>
-                  <SelectItem value="spending_limit">Limite de Gasto</SelectItem>
-                  <SelectItem value="income">Renda</SelectItem>
-                  <SelectItem value="emergency_fund">Reserva de Emergência</SelectItem>
+                  <SelectItem value="savings">Ahorro</SelectItem>
+                  <SelectItem value="spending_limit">Límite de Gasto</SelectItem>
+                  <SelectItem value="income">Ingreso</SelectItem>
+                  <SelectItem value="emergency_fund">Fondo de Emergencia</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -169,13 +176,13 @@ export default function GoalDialog({ children, accountId, goal, onSuccess }: Goa
             {/* Target Amount and Current Amount */}
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="targetAmount">Valor Alvo (R$)</Label>
+                <Label htmlFor="targetAmount">Monto Objetivo ({currencySymbol})</Label>
                 <Input
                   id="targetAmount"
                   type="number"
-                  step="0.01"
+                  step="1"
                   min="0"
-                  placeholder="0,00"
+                  placeholder="0"
                   value={targetAmount}
                   onChange={(e) => setTargetAmount(e.target.value)}
                   disabled={isPending}
@@ -183,13 +190,13 @@ export default function GoalDialog({ children, accountId, goal, onSuccess }: Goa
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="currentAmount">Valor Atual (R$)</Label>
+                <Label htmlFor="currentAmount">Monto Actual ({currencySymbol})</Label>
                 <Input
                   id="currentAmount"
                   type="number"
-                  step="0.01"
+                  step="1"
                   min="0"
-                  placeholder="0,00"
+                  placeholder="0"
                   value={currentAmount}
                   onChange={(e) => setCurrentAmount(e.target.value)}
                   disabled={isPending}
@@ -199,7 +206,7 @@ export default function GoalDialog({ children, accountId, goal, onSuccess }: Goa
 
             {/* Deadline */}
             <div className="grid gap-2">
-              <Label htmlFor="deadline">Prazo (opcional)</Label>
+              <Label htmlFor="deadline">Plazo (opcional)</Label>
               <Input
                 id="deadline"
                 type="date"
@@ -211,10 +218,10 @@ export default function GoalDialog({ children, accountId, goal, onSuccess }: Goa
 
             {/* Category (optional) */}
             <div className="grid gap-2">
-              <Label htmlFor="category">Categoria (opcional)</Label>
+              <Label htmlFor="category">Categoría (opcional)</Label>
               <Select value={categoryId || undefined} onValueChange={(value) => setCategoryId(value || "")} disabled={isPending}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Nenhuma" />
+                  <SelectValue placeholder="Ninguna" />
                 </SelectTrigger>
                 <SelectContent>
                   {categories && categories.length > 0 ? (
@@ -224,7 +231,7 @@ export default function GoalDialog({ children, accountId, goal, onSuccess }: Goa
                       </SelectItem>
                     ))
                   ) : (
-                    <div className="px-2 py-1.5 text-sm text-muted-foreground">Nenhuma categoria disponível</div>
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">No hay categorías disponibles</div>
                   )}
                 </SelectContent>
               </Select>
@@ -237,7 +244,7 @@ export default function GoalDialog({ children, accountId, goal, onSuccess }: Goa
             </Button>
             <Button type="submit" disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {goal ? "Atualizar" : "Criar"}
+              {goal ? "Actualizar" : "Crear"}
             </Button>
           </DialogFooter>
         </form>

@@ -10,6 +10,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import { useI18n } from "@/lib/i18n/useI18n";
 import {
   Calendar,
   CreditCard,
@@ -29,22 +30,22 @@ interface FinanceLayoutProps {
   children: React.ReactNode;
 }
 
-const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Transações", href: "/transactions", icon: Receipt },
-  { name: "Categorias", href: "/categories", icon: FolderKanban },
-  { name: "Metas", href: "/goals", icon: Target },
-  { name: "Agenda", href: "/schedule", icon: Calendar },
-  { name: "Cartões de Crédito", href: "/credit-cards", icon: CreditCard },
-  { name: "Relatórios", href: "/reports", icon: FileText },
-];
-
 export default function FinanceLayout({ children }: FinanceLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout, loading } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { t } = useI18n();
   const [mounted, setMounted] = useState(false);
+  const navigation = [
+    { name: t("nav.dashboard"), href: "/dashboard", icon: LayoutDashboard },
+    { name: t("nav.transactions"), href: "/transactions", icon: Receipt },
+    { name: t("nav.categories"), href: "/categories", icon: FolderKanban },
+    { name: t("nav.goals"), href: "/goals", icon: Target },
+    { name: t("nav.schedule"), href: "/schedule", icon: Calendar },
+    { name: t("nav.creditCards"), href: "/credit-cards", icon: CreditCard },
+    { name: t("nav.reports"), href: "/reports", icon: FileText },
+  ];
 
   // Evitar erro de hidratação - só renderizar após montar no cliente
   useEffect(() => {
@@ -109,13 +110,13 @@ export default function FinanceLayout({ children }: FinanceLayoutProps) {
           <Link href="/profile">
             <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer">
               <User className="w-5 h-5" />
-              Perfil
+              {t("nav.profile")}
             </div>
           </Link>
           <Link href="/settings">
             <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer">
               <Settings className="w-5 h-5" />
-              Configurações
+              {t("nav.settings")}
             </div>
           </Link>
           <button
@@ -126,17 +127,17 @@ export default function FinanceLayout({ children }: FinanceLayoutProps) {
             {mounted && theme === "dark" ? (
               <>
                 <Sun className="w-5 h-5" />
-                Modo Claro
+                {t("nav.lightMode")}
               </>
             ) : mounted ? (
               <>
                 <Moon className="w-5 h-5" />
-                Modo Escuro
+                {t("nav.darkMode")}
               </>
             ) : (
               <>
                 <Moon className="w-5 h-5" />
-                Modo Escuro
+                {t("nav.darkMode")}
               </>
             )}
           </button>
@@ -152,7 +153,7 @@ export default function FinanceLayout({ children }: FinanceLayoutProps) {
             onClick={handleLogout}
           >
             <LogOut className="w-4 h-4 mr-2" />
-            Sair
+            {t("nav.logout")}
           </Button>
         </div>
       </aside>

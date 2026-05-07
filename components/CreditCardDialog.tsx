@@ -15,6 +15,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { trpc } from "@/lib/trpc/client";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { convertFromBaseCurrency, getAppCurrencySymbol, parseCurrencyInput } from "@/lib/i18n/currency";
+import { useSystemPreferences } from "@/lib/i18n/preferences";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 interface CreditCardDialogProps {
   children: React.ReactNode;
@@ -23,24 +26,30 @@ interface CreditCardDialogProps {
   onSuccess?: () => void;
 }
 
-const BRAND_OPTIONS = ["Visa", "Mastercard", "Elo", "American Express", "Hipercard", "Outro"];
+const BRAND_OPTIONS = ["Visa", "Mastercard", "American Express", "Cabal", "Maestro", "Otro"];
 const COLOR_OPTIONS = [
-  { name: "Verde", value: "#2ECC71" },
+  { name: "Verde claro", value: "#2ECC71" },
   { name: "Azul", value: "#3B82F6" },
-  { name: "Vermelho", value: "#EF4444" },
+  { name: "Rojo", value: "#EF4444" },
   { name: "Verde", value: "#10B981" },
-  { name: "Roxo", value: "#8B5CF6" },
-  { name: "Preto", value: "#1F2937" },
-  { name: "Dourado", value: "#F59E0B" },
+  { name: "Violeta", value: "#8B5CF6" },
+  { name: "Negro", value: "#1F2937" },
+  { name: "Dorado", value: "#F59E0B" },
 ];
 
 export default function CreditCardDialog({ children, accountId, card, onSuccess }: CreditCardDialogProps) {
+  const { locale } = useI18n();
+  const isPt = locale === "pt";
+  const { currency } = useSystemPreferences();
+  const currencySymbol = getAppCurrencySymbol(currency);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(card?.name || "");
   const [lastFourDigits, setLastFourDigits] = useState(card?.lastFourDigits || "");
   const [brand, setBrand] = useState(card?.brand || "Visa");
   const [color, setColor] = useState(card?.color || "#2ECC71");
-  const [creditLimit, setCreditLimit] = useState(card?.creditLimit ? (card.creditLimit / 100).toFixed(2) : "");
+  const [creditLimit, setCreditLimit] = useState(
+    card?.creditLimit ? String(convertFromBaseCurrency(card.creditLimit, currency)) : ""
+  );
   const [closingDay, setClosingDay] = useState(card?.closingDay?.toString() || "10");
   const [dueDay, setDueDay] = useState(card?.dueDay?.toString() || "15");
 
@@ -60,33 +69,33 @@ export default function CreditCardDialog({ children, accountId, card, onSuccess 
       setLastFourDigits(card.lastFourDigits || "");
       setBrand(card.brand || "Visa");
       setColor(card.color || "#2ECC71");
-      setCreditLimit(card.creditLimit ? (card.creditLimit / 100).toFixed(2) : "");
+      setCreditLimit(card.creditLimit ? String(convertFromBaseCurrency(card.creditLimit, currency)) : "");
       setClosingDay(card.closingDay?.toString() || "10");
       setDueDay(card.dueDay?.toString() || "15");
     }
-  }, [open, card]);
+  }, [open, card, currency]);
 
   const createMutation = trpc.creditCards.create.useMutation({
     onSuccess: () => {
-      toast.success("Cartão criado com sucesso!");
+      toast.success(isPt ? "Cartão criado com sucesso!" : "¡Tarjeta creada con éxito!");
       setOpen(false);
       utils.creditCards.list.invalidate();
       onSuccess?.();
     },
     onError: (error) => {
-      toast.error(`Erro ao criar cartão: ${error.message}`);
+      toast.error(`${isPt ? "Erro ao criar cartão" : "Error al crear la tarjeta"}: ${error.message}`);
     },
   });
 
   const updateMutation = trpc.creditCards.update.useMutation({
     onSuccess: () => {
-      toast.success("Cartão atualizado com sucesso!");
+      toast.success(isPt ? "Cartão atualizado com sucesso!" : "¡Tarjeta actualizada con éxito!");
       setOpen(false);
       utils.creditCards.list.invalidate();
       onSuccess?.();
     },
     onError: (error) => {
-      toast.error(`Erro ao atualizar cartão: ${error.message}`);
+      toast.error(`${isPt ? "Erro ao atualizar cartão" : "Error al actualizar la tarjeta"}: ${error.message}`);
     },
   });
 
@@ -94,21 +103,21 @@ export default function CreditCardDialog({ children, accountId, card, onSuccess 
     e.preventDefault();
 
     if (!name.trim()) {
-      toast.error("Por favor, informe o nome do cartão");
+      toast.error(isPt ? "Por favor, informe o nome do cartão" : "Por favor, ingresá el nombre de la tarjeta");
       return;
     }
 
     if (!lastFourDigits || lastFourDigits.length !== 4 || !/^\d{4}$/.test(lastFourDigits)) {
-      toast.error("Por favor, informe os últimos 4 dígitos do cartão");
+      toast.error(isPt ? "Por favor, informe os últimos 4 dígitos do cartão" : "Por favor, ingresá los últimos 4 dígitos de la tarjeta");
       return;
     }
 
-    if (!creditLimit || parseFloat(creditLimit) <= 0) {
-      toast.error("Por favor, informe um limite válido");
+    const creditLimitValue = parseCurrencyInput(creditLimit, { currency });
+    if (!Number.isFinite(creditLimitValue) || creditLimitValue <= 0) {
+      toast.error(isPt ? "Por favor, informe um limite válido" : "Por favor, ingresá un límite válido");
       return;
     }
 
-    const creditLimitInCents = Math.round(parseFloat(creditLimit) * 100);
     const closingDayNum = parseInt(closingDay);
     const dueDayNum = parseInt(dueDay);
 
@@ -119,7 +128,7 @@ export default function CreditCardDialog({ children, accountId, card, onSuccess 
         lastFourDigits,
         brand,
         color,
-        creditLimit: creditLimitInCents,
+        creditLimit: creditLimitValue,
         closingDay: closingDayNum,
         dueDay: dueDayNum,
       });
@@ -130,7 +139,7 @@ export default function CreditCardDialog({ children, accountId, card, onSuccess 
         lastFourDigits,
         brand,
         color,
-        creditLimit: creditLimitInCents,
+        creditLimit: creditLimitValue,
         closingDay: closingDayNum,
         dueDay: dueDayNum,
       });
@@ -145,17 +154,19 @@ export default function CreditCardDialog({ children, accountId, card, onSuccess 
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>{card ? "Editar Cartão" : "Novo Cartão de Crédito"}</DialogTitle>
+            <DialogTitle>{card ? (isPt ? "Editar Cartão" : "Editar Tarjeta") : (isPt ? "Novo Cartão de Crédito" : "Nueva Tarjeta de Crédito")}</DialogTitle>
             <DialogDescription>
-              {card ? "Atualize os dados do cartão" : "Adicione um novo cartão de crédito"}
+              {card
+                ? isPt ? "Atualize os dados do cartão" : "Actualizá los datos de la tarjeta"
+                : isPt ? "Adicione um novo cartão de crédito" : "Agregá una nueva tarjeta de crédito"}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="name">Nome do Cartão</Label>
+              <Label htmlFor="name">{isPt ? "Nome do Cartão" : "Nombre de la Tarjeta"}</Label>
               <Input
                 id="name"
-                placeholder="Ex: Nubank, Itaú"
+                placeholder={isPt ? "Ex: Visa Itaú, Mastercard Nubank" : "Ej: Visa Itaú, Mastercard Continental"}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 disabled={isPending}
@@ -165,7 +176,7 @@ export default function CreditCardDialog({ children, accountId, card, onSuccess 
 
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="lastFourDigits">Últimos 4 Dígitos</Label>
+                <Label htmlFor="lastFourDigits">{isPt ? "Últimos 4 Dígitos" : "Últimos 4 Dígitos"}</Label>
                 <Input
                   id="lastFourDigits"
                   placeholder="1234"
@@ -180,7 +191,7 @@ export default function CreditCardDialog({ children, accountId, card, onSuccess 
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="brand">Bandeira</Label>
+                <Label htmlFor="brand">{isPt ? "Bandeira" : "Marca"}</Label>
                 <Select value={brand} onValueChange={setBrand} disabled={isPending}>
                   <SelectTrigger>
                     <SelectValue />
@@ -197,7 +208,7 @@ export default function CreditCardDialog({ children, accountId, card, onSuccess 
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="color">Cor</Label>
+              <Label htmlFor="color">{isPt ? "Cor" : "Color"}</Label>
               <div className="grid grid-cols-6 gap-2">
                 {COLOR_OPTIONS.map((c) => (
                   <button
@@ -215,13 +226,13 @@ export default function CreditCardDialog({ children, accountId, card, onSuccess 
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="creditLimit">Limite (R$)</Label>
+              <Label htmlFor="creditLimit">{isPt ? "Limite" : "Límite"} ({currencySymbol})</Label>
               <Input
                 id="creditLimit"
                 type="number"
-                step="0.01"
+                step="1"
                 min="0"
-                placeholder="0,00"
+                placeholder="0"
                 value={creditLimit}
                 onChange={(e) => setCreditLimit(e.target.value)}
                 disabled={isPending}
@@ -231,7 +242,7 @@ export default function CreditCardDialog({ children, accountId, card, onSuccess 
 
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="closingDay">Dia de Fechamento</Label>
+                <Label htmlFor="closingDay">{isPt ? "Dia de Fechamento" : "Día de Cierre"}</Label>
                 <Input
                   id="closingDay"
                   type="number"
@@ -244,7 +255,7 @@ export default function CreditCardDialog({ children, accountId, card, onSuccess 
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="dueDay">Dia de Vencimento</Label>
+                <Label htmlFor="dueDay">{isPt ? "Dia de Vencimento" : "Día de Vencimiento"}</Label>
                 <Input
                   id="dueDay"
                   type="number"
@@ -260,11 +271,11 @@ export default function CreditCardDialog({ children, accountId, card, onSuccess 
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
-              Cancelar
+              {isPt ? "Cancelar" : "Cancelar"}
             </Button>
             <Button type="submit" disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {card ? "Atualizar" : "Criar"}
+              {card ? (isPt ? "Atualizar" : "Actualizar") : (isPt ? "Criar" : "Crear")}
             </Button>
           </DialogFooter>
         </form>

@@ -21,8 +21,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 export default function CategoriesPage() {
+  const { t } = useI18n();
   const [selectedAccount, setSelectedAccount] = useState<number | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<number | null>(null);
@@ -45,13 +47,13 @@ export default function CategoriesPage() {
 
   const deleteMutation = trpc.categories.delete.useMutation({
     onSuccess: () => {
-      toast.success("Categoria excluída com sucesso!");
+      toast.success(t("categories.deleted"));
       setIsDeleteDialogOpen(false);
       setCategoryToDelete(null);
       utils.categories.list.invalidate();
     },
     onError: (error) => {
-      toast.error(`Erro ao excluir categoria: ${error.message}`);
+      toast.error(`${t("categories.deleteError")}${error.message}`);
     },
   });
 
@@ -91,7 +93,7 @@ export default function CategoriesPage() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center space-y-4">
-          <p className="text-muted-foreground">Você ainda não possui nenhuma conta.</p>
+          <p className="text-muted-foreground">{t("common.noAccounts")}</p>
         </div>
       </div>
     );
@@ -101,22 +103,22 @@ export default function CategoriesPage() {
     <div className="p-8 space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-primary">Categorias</h1>
-          <p className="text-muted-foreground mt-1">Gerencie suas categorias de transações</p>
+          <h1 className="text-3xl font-bold text-primary">{t("categories.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("categories.subtitle")}</p>
         </div>
         {selectedAccount && (
           <CategoryDialog accountId={selectedAccount}>
             <Button className="gap-2">
               <Plus className="w-4 h-4" />
-              Nova Categoria
+              {t("categories.newCategory")}
             </Button>
           </CategoryDialog>
         )}
       </div>
 
-      {/* Categorias de Receita */}
+      {/* Categorías de Ingreso */}
       <div className="space-y-4">
-        <h2 className="text-xl font-bold">Categorias de Receita</h2>
+        <h2 className="text-xl font-bold">{t("categories.incomeCategories")}</h2>
         {categoriesLoading ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <Skeleton className="h-32 w-full" />
@@ -162,7 +164,7 @@ export default function CategoriesPage() {
                     <div className="space-y-2">
                       <p className="font-bold text-lg">{category.name}</p>
                       <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                        Receita
+                        {t("common.income")}
                       </Badge>
                     </div>
                   </CardContent>
@@ -172,14 +174,14 @@ export default function CategoriesPage() {
           </div>
         ) : (
           <div className="text-center py-8 text-muted-foreground border rounded-lg">
-            Nenhuma categoria de receita encontrada
+            {t("categories.noIncomeCategories")}
           </div>
         )}
       </div>
 
-      {/* Categorias de Despesa */}
+      {/* Categorías de Gasto */}
       <div className="space-y-4">
-        <h2 className="text-xl font-bold">Categorias de Despesa</h2>
+        <h2 className="text-xl font-bold">{t("categories.expenseCategories")}</h2>
         {categoriesLoading ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <Skeleton className="h-32 w-full" />
@@ -225,7 +227,7 @@ export default function CategoriesPage() {
                     <div className="space-y-2">
                       <p className="font-bold text-lg">{category.name}</p>
                       <Badge className="bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200">
-                        Despesa
+                        {t("common.expense")}
                       </Badge>
                     </div>
                   </CardContent>
@@ -235,12 +237,12 @@ export default function CategoriesPage() {
           </div>
         ) : (
           <div className="text-center py-8 text-muted-foreground border rounded-lg">
-            Nenhuma categoria de despesa encontrada
+            {t("categories.noExpenseCategories")}
           </div>
         )}
       </div>
 
-      {/* Dialog de Edição */}
+      {/* Dialog de Edición */}
       {editingCategory && selectedAccount && (
         <CategoryDialog
           accountId={selectedAccount}
@@ -251,24 +253,24 @@ export default function CategoriesPage() {
         </CategoryDialog>
       )}
 
-      {/* Alert Dialog de Exclusão */}
+      {/* Alert Dialog de Eliminación */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Categoria</AlertDialogTitle>
+            <AlertDialogTitle>{t("categories.deleteTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir esta categoria? Esta ação não pode ser desfeita.
+              {t("categories.deleteDescription")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               disabled={deleteMutation.isPending}
             >
               {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Excluir
+              {t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

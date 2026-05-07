@@ -25,11 +25,17 @@ import { Plus, Edit, Trash2, Filter, X, Calendar as CalendarIcon, ChevronDown, C
 import { useState, useEffect, useMemo } from "react";
 import { format, startOfMonth, endOfMonth, subDays, startOfDay, endOfDay, addMonths, subMonths } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ptBR } from "date-fns/locale/pt-BR";
+import { getDateLocale } from "@/lib/i18n/date";
+import { formatCurrency } from "@/lib/i18n/currency";
+import { useSystemPreferences } from "@/lib/i18n/preferences";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 type PeriodFilter = "all" | "today" | "last7days" | "currentMonth" | "selectedMonth" | "custom";
 
 export default function TransactionsPage() {
+  const { t } = useI18n();
+  const { language, currency } = useSystemPreferences();
+  const dateLocale = getDateLocale(language);
   const [selectedAccount, setSelectedAccount] = useState<number | null>(null);
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("all");
   const [customStartDate, setCustomStartDate] = useState<Date | undefined>(undefined);
@@ -195,13 +201,6 @@ export default function TransactionsPage() {
     },
   });
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value / 100);
-  };
-
   const formatDate = (date: Date | string) => {
     // Ensure we're working with a Date object and format in local timezone
     const dateObj = typeof date === 'string' ? new Date(date) : date;
@@ -225,7 +224,7 @@ export default function TransactionsPage() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center space-y-4">
-          <p className="text-muted-foreground">Você ainda não possui nenhuma conta.</p>
+          <p className="text-muted-foreground">{t("common.noAccounts")}</p>
         </div>
       </div>
     );
@@ -235,8 +234,8 @@ export default function TransactionsPage() {
     <div className="p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-primary">Transações</h1>
-          <p className="text-muted-foreground mt-1">Gerencie suas transações financeiras</p>
+          <h1 className="text-3xl font-bold text-primary">{t("transactions.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("transactions.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -245,7 +244,7 @@ export default function TransactionsPage() {
             className="gap-2"
           >
             <Filter className="w-4 h-4" />
-            Filtros
+            {t("transactions.filters")}
             {activeFiltersCount > 0 && (
               <Badge variant="secondary" className="ml-1">
                 {activeFiltersCount}
@@ -255,7 +254,7 @@ export default function TransactionsPage() {
           <TransactionDialog accountId={selectedAccount!} onSuccess={() => refetch()}>
             <Button className="gap-2">
               <Plus className="w-4 h-4" />
-              Nova Transação
+              {t("transactions.newTransaction")}
             </Button>
           </TransactionDialog>
         </div>
@@ -267,13 +266,13 @@ export default function TransactionsPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4" />
-              <CardTitle>Filtros</CardTitle>
+              <CardTitle>{t("transactions.filters")}</CardTitle>
             </div>
             <div className="flex items-center gap-2">
               {activeFiltersCount > 0 && (
                 <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-2">
                   <X className="w-4 h-4" />
-                  Limpar Filtros
+                  {t("transactions.clearFilters")}
                 </Button>
               )}
               <Button
@@ -296,9 +295,9 @@ export default function TransactionsPage() {
                 <div className="space-y-4">
                   {/* Filtro de Descrição */}
                   <div className="grid gap-1.5">
-                    <Label className="text-sm">Descrição</Label>
+                    <Label className="text-sm">{t("common.description")}</Label>
                     <Input
-                      placeholder="Buscar por descrição..."
+                      placeholder={t("transactions.searchDescription")}
                       value={descriptionFilter}
                       onChange={(e) => setDescriptionFilter(e.target.value)}
                       className="h-9 w-full"
@@ -307,30 +306,30 @@ export default function TransactionsPage() {
 
                   {/* Filtro de Tipo */}
                   <div className="grid gap-1.5">
-                    <Label className="text-sm">Tipo</Label>
-                    <Select 
-                      value={typeFilter || undefined} 
+                    <Label className="text-sm">{t("common.type")}</Label>
+                    <Select
+                      value={typeFilter || undefined}
                       onValueChange={(value) => setTypeFilter(value || "")}
                     >
                       <SelectTrigger className="h-9 w-full">
-                        <SelectValue placeholder="Todos os tipos" />
+                        <SelectValue placeholder={t("transactions.allTypes")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="income">Receita</SelectItem>
-                        <SelectItem value="expense">Despesa</SelectItem>
+                        <SelectItem value="income">{t("common.income")}</SelectItem>
+                        <SelectItem value="expense">{t("common.expense")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   {/* Filtro de Conta Bancária */}
                   <div className="grid gap-1.5">
-                    <Label className="text-sm">Conta Bancária</Label>
-                    <Select 
-                      value={accountFilter || undefined} 
+                    <Label className="text-sm">{t("common.account")}</Label>
+                    <Select
+                      value={accountFilter || undefined}
                       onValueChange={(value) => setAccountFilter(value || "")}
                     >
                       <SelectTrigger className="h-9 w-full">
-                        <SelectValue placeholder="Todas as contas" />
+                        <SelectValue placeholder={t("transactions.allAccounts")} />
                       </SelectTrigger>
                       <SelectContent>
                         {accounts?.map((account) => (
@@ -347,13 +346,13 @@ export default function TransactionsPage() {
                 <div className="space-y-4">
                   {/* Filtro de Criado por */}
                   <div className="grid gap-1.5">
-                    <Label className="text-sm">Criado por</Label>
-                    <Select 
-                      value={userFilter || undefined} 
+                    <Label className="text-sm">{t("common.createdBy")}</Label>
+                    <Select
+                      value={userFilter || undefined}
                       onValueChange={(value) => setUserFilter(value || "")}
                     >
                       <SelectTrigger className="h-9 w-full">
-                        <SelectValue placeholder="Todos os usuários" />
+                        <SelectValue placeholder={t("transactions.allUsers")} />
                       </SelectTrigger>
                       <SelectContent>
                         {uniqueUsers.map((user) => (
@@ -367,13 +366,13 @@ export default function TransactionsPage() {
 
                   {/* Filtro de Categoria */}
                   <div className="grid gap-1.5">
-                    <Label className="text-sm">Categoria</Label>
-                    <Select 
-                      value={categoryFilter || undefined} 
+                    <Label className="text-sm">{t("common.category")}</Label>
+                    <Select
+                      value={categoryFilter || undefined}
                       onValueChange={(value) => setCategoryFilter(value || "")}
                     >
                       <SelectTrigger className="h-9 w-full">
-                        <SelectValue placeholder="Todas as categorias" />
+                        <SelectValue placeholder={t("transactions.allCategories")} />
                       </SelectTrigger>
                       <SelectContent>
                         {categories?.map((category) => (
@@ -387,13 +386,13 @@ export default function TransactionsPage() {
 
                   {/* Filtro de Cartão de Crédito */}
                   <div className="grid gap-1.5">
-                    <Label className="text-sm">Cartão de Crédito</Label>
-                    <Select 
-                      value={creditCardFilter || undefined} 
+                    <Label className="text-sm">{t("common.creditCard")}</Label>
+                    <Select
+                      value={creditCardFilter || undefined}
                       onValueChange={(value) => setCreditCardFilter(value || "")}
                     >
                       <SelectTrigger className="h-9 w-full">
-                        <SelectValue placeholder="Todos os cartões" />
+                        <SelectValue placeholder={t("transactions.allCards")} />
                       </SelectTrigger>
                       <SelectContent>
                         {creditCards?.map((card) => (
@@ -409,7 +408,7 @@ export default function TransactionsPage() {
 
               {/* Seção de Período no final */}
               <div className="space-y-2 pt-2 border-t">
-                <Label>Período</Label>
+                <Label>{t("transactions.period")}</Label>
                 <div className="flex items-center gap-4 flex-wrap">
                   {/* Navegação de Mês */}
                   <div className="flex items-center gap-2">
@@ -429,7 +428,7 @@ export default function TransactionsPage() {
                       <ChevronLeft className="w-4 h-4" />
                     </Button>
                     <span className="text-sm font-medium min-w-[140px] text-center capitalize">
-                      {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
+                      {format(currentMonth, "MMMM yyyy", { locale: dateLocale })}
                     </span>
                     <Button
                       type="button"
@@ -461,7 +460,7 @@ export default function TransactionsPage() {
                         setCustomEndDate(undefined);
                       }}
                     >
-                      Hoje
+                      {t("dashboard.today")}
                     </Button>
                     <Button
                       type="button"
@@ -474,7 +473,7 @@ export default function TransactionsPage() {
                         setCustomEndDate(undefined);
                       }}
                     >
-                      Últimos 7 dias
+                      {t("dashboard.last7Days")}
                     </Button>
                     <Button
                       type="button"
@@ -487,7 +486,7 @@ export default function TransactionsPage() {
                         setCustomEndDate(undefined);
                       }}
                     >
-                      Mês atual
+                      {t("dashboard.currentMonth")}
                     </Button>
                     <Popover>
                       <PopoverTrigger asChild>
@@ -499,13 +498,13 @@ export default function TransactionsPage() {
                           className="gap-2"
                         >
                           <CalendarIcon className="w-4 h-4" />
-                          Personalizado
+                          {t("dashboard.custom")}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
                         <div className="p-4 space-y-4">
                           <div className="space-y-2">
-                            <Label>Data Inicial</Label>
+                            <Label>{t("dashboard.startDate")}</Label>
                             <Popover>
                               <PopoverTrigger asChild>
                                 <Button
@@ -513,7 +512,7 @@ export default function TransactionsPage() {
                                   className="w-full justify-start text-left font-normal"
                                 >
                                   <CalendarIcon className="mr-2 h-4 w-4" />
-                                  {customStartDate ? format(customStartDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
+                                  {customStartDate ? format(customStartDate, "dd/MM/yyyy", { locale: dateLocale }) : t("transactions.selectDate")}
                                 </Button>
                               </PopoverTrigger>
                               <PopoverContent className="w-auto p-0" align="start">
@@ -534,7 +533,7 @@ export default function TransactionsPage() {
                             </Popover>
                           </div>
                           <div className="space-y-2">
-                            <Label>Data Final</Label>
+                            <Label>{t("dashboard.endDate")}</Label>
                             <Popover>
                               <PopoverTrigger asChild>
                                 <Button
@@ -542,7 +541,7 @@ export default function TransactionsPage() {
                                   className="w-full justify-start text-left font-normal"
                                 >
                                   <CalendarIcon className="mr-2 h-4 w-4" />
-                                  {customEndDate ? format(customEndDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
+                                  {customEndDate ? format(customEndDate, "dd/MM/yyyy", { locale: dateLocale }) : t("transactions.selectDate")}
                                 </Button>
                               </PopoverTrigger>
                               <PopoverContent className="w-auto p-0" align="start">
@@ -575,7 +574,7 @@ export default function TransactionsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Lista de Transações</CardTitle>
+          <CardTitle>{t("transactions.listTitle")}</CardTitle>
         </CardHeader>
         <CardContent>
           {transactionsLoading ? (
@@ -589,15 +588,15 @@ export default function TransactionsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead>Categoria</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Conta Bancária</TableHead>
-                    <TableHead>Cartão de Crédito</TableHead>
-                    <TableHead>Criado por</TableHead>
-                    <TableHead>Valor</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
+                    <TableHead>{t("common.date")}</TableHead>
+                    <TableHead>{t("common.description")}</TableHead>
+                    <TableHead>{t("common.category")}</TableHead>
+                    <TableHead>{t("common.type")}</TableHead>
+                    <TableHead>{t("common.account")}</TableHead>
+                    <TableHead>{t("common.creditCard")}</TableHead>
+                    <TableHead>{t("common.createdBy")}</TableHead>
+                    <TableHead>{t("common.amount")}</TableHead>
+                    <TableHead className="text-right">{t("common.actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -625,7 +624,7 @@ export default function TransactionsPage() {
                           variant={transaction.type === "income" ? "default" : "destructive"}
                           className="border-0"
                         >
-                          {transaction.type === "income" ? "Receita" : "Despesa"}
+                          {transaction.type === "income" ? t("common.income") : t("common.expense")}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -643,7 +642,8 @@ export default function TransactionsPage() {
                             transaction.type === "income" ? "text-primary" : "text-destructive"
                           }`}
                         >
-                          {transaction.type === "income" ? "+" : "-"} {formatCurrency(transaction.amount)}
+                          {transaction.type === "income" ? "+" : "-"}{" "}
+                          {formatCurrency(transaction.amount, { language, currency })}
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
@@ -665,18 +665,18 @@ export default function TransactionsPage() {
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
-                                <AlertDialogTitle>Excluir Transação</AlertDialogTitle>
+                                <AlertDialogTitle>{t("transactions.deleteTitle")}</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  Tem certeza que deseja excluir a transação "{transaction.description}"? Esta ação não pode ser desfeita.
+                                  {t("transactions.deleteDescription").replace("{description}", transaction.description)}
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
                                 <AlertDialogAction
                                   onClick={() => deleteMutation.mutate({ id: transaction.id })}
                                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                 >
-                                  Excluir
+                                  {t("common.delete")}
                                 </AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
@@ -690,7 +690,7 @@ export default function TransactionsPage() {
             </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
-              Nenhuma transação encontrada
+              {t("transactions.noneFound")}
             </div>
           )}
         </CardContent>

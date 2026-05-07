@@ -9,7 +9,10 @@ import ScheduleCalendar from "@/components/ScheduleCalendar";
 import { Plus, Check, Star, StarOff, Trash2, Edit, Calendar, List } from "lucide-react";
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { getDateLocale } from "@/lib/i18n/date";
+import { formatCurrency } from "@/lib/i18n/currency";
+import { useSystemPreferences } from "@/lib/i18n/preferences";
+import { useI18n } from "@/lib/i18n/useI18n";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,6 +26,9 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function SchedulePage() {
+  const { t } = useI18n();
+  const { language, currency } = useSystemPreferences();
+  const dateLocale = getDateLocale(language);
   const [selectedAccount, setSelectedAccount] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
   
@@ -57,15 +63,8 @@ export default function SchedulePage() {
     },
   });
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value / 100);
-  };
-
   const formatDate = (date: Date | string) => {
-    return format(new Date(date), "dd/MM/yyyy", { locale: ptBR });
+    return format(new Date(date), "dd/MM/yyyy", { locale: dateLocale });
   };
 
   // Separar pagamentos por status
@@ -90,7 +89,7 @@ export default function SchedulePage() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center space-y-4">
-          <p className="text-muted-foreground">Você ainda não possui nenhuma conta.</p>
+          <p className="text-muted-foreground">{t("common.noAccounts")}</p>
         </div>
       </div>
     );
@@ -100,8 +99,8 @@ export default function SchedulePage() {
     <div className="p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-primary">Agenda</h1>
-          <p className="text-muted-foreground mt-1">Gerencie seus pagamentos agendados</p>
+          <h1 className="text-3xl font-bold text-primary">{t("schedule.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("schedule.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex border rounded-lg">
@@ -112,7 +111,7 @@ export default function SchedulePage() {
               className="rounded-r-none"
             >
               <Calendar className="w-4 h-4 mr-2" />
-              Calendário
+              {t("schedule.calendar")}
             </Button>
             <Button
               variant={viewMode === "list" ? "default" : "ghost"}
@@ -121,14 +120,14 @@ export default function SchedulePage() {
               className="rounded-l-none"
             >
               <List className="w-4 h-4 mr-2" />
-              Lista
+              {t("schedule.list")}
             </Button>
           </div>
           {selectedAccount && (
             <ScheduledPaymentDialog accountId={selectedAccount} onSuccess={() => refetch()}>
               <Button className="gap-2">
                 <Plus className="w-4 h-4" />
-                Novo Agendamento
+                {t("schedule.newPayment")}
               </Button>
             </ScheduledPaymentDialog>
           )}
@@ -149,10 +148,10 @@ export default function SchedulePage() {
         />
       ) : (
         <>
-          {/* Pagamentos Pendentes */}
+          {/* Pagos Pendientes */}
           <Card>
             <CardHeader>
-              <CardTitle>Pagamentos Pendentes ({sortedPending.length})</CardTitle>
+              <CardTitle>{t("schedule.pendingPayments")} ({sortedPending.length})</CardTitle>
             </CardHeader>
             <CardContent>
               {sortedPending.length > 0 ? (
@@ -170,12 +169,12 @@ export default function SchedulePage() {
                           {payment.isPriority && <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />}
                           {payment.isRecurring && (
                             <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
-                              Recorrente
+                              {t("schedule.recurring")}
                             </span>
                           )}
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          {formatDate(payment.dueDate)} • {formatCurrency(payment.amount)}
+                          {formatDate(payment.dueDate)} • {formatCurrency(payment.amount, { language, currency })}
                         </p>
                       </div>
                       <div className="flex gap-2">
@@ -206,18 +205,18 @@ export default function SchedulePage() {
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Excluir Agendamento</AlertDialogTitle>
+                              <AlertDialogTitle>{t("schedule.deleteTitle")}</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Tem certeza que deseja excluir este agendamento? Esta ação não pode ser desfeita.
+                                {t("schedule.deleteDescription")}
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
                               <AlertDialogAction
                                 onClick={() => deleteMutation.mutate({ id: payment.id })}
                                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                               >
-                                Excluir
+                                {t("common.delete")}
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
@@ -228,17 +227,17 @@ export default function SchedulePage() {
                 </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
-                  Nenhum pagamento pendente
+                  {t("schedule.noPending")}
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Pagamentos Realizados */}
+          {/* Pagos Realizados */}
           {paidPayments.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>Pagamentos Realizados ({paidPayments.length})</CardTitle>
+                <CardTitle>{t("schedule.paidPayments")} ({paidPayments.length})</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
@@ -251,11 +250,11 @@ export default function SchedulePage() {
                         <div className="flex items-center gap-2">
                           <p className="font-medium line-through">{payment.description}</p>
                           <span className="text-xs bg-green-500/10 text-green-500 px-2 py-1 rounded">
-                            Pago
+                            {t("schedule.paid")}
                           </span>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          {formatDate(payment.dueDate)} • {formatCurrency(payment.amount)}
+                          {formatDate(payment.dueDate)} • {formatCurrency(payment.amount, { language, currency })}
                         </p>
                       </div>
                     </div>

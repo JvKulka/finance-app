@@ -19,18 +19,15 @@ export default function LoginPage() {
 
   const loginMutation = trpc.auth.login.useMutation({
     onSuccess: async (user) => {
-      // Invalidar e refetch a query auth.me para atualizar o estado de autenticação
       await utils.auth.me.invalidate();
       await utils.auth.me.refetch();
-      
-      toast.success(`Bem-vindo, ${user.name || "Usuário"}!`);
-      
-      // Usar window.location para garantir que a página seja recarregada e o cookie seja lido
-      // Isso garante que o middleware veja o cookie atualizado
+
+      toast.success(`¡Bienvenido, ${user.name || "Usuario"}!`);
+
       window.location.href = "/dashboard";
     },
     onError: (error) => {
-      toast.error(error.message || "Erro ao fazer login");
+      toast.error(error.message || "Error al iniciar sesión");
     },
   });
 
@@ -53,20 +50,20 @@ export default function LoginPage() {
             />
           </div>
           <div className="space-y-1 text-center">
-            <CardTitle className="text-2xl font-bold">Entrar</CardTitle>
+            <CardTitle className="text-2xl font-bold">Iniciar Sesión</CardTitle>
             <CardDescription>
-              Digite seu email e senha para acessar sua conta
+              Ingresá tu correo y contraseña para acceder a tu cuenta
             </CardDescription>
           </div>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Correo electrónico</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="seu@email.com"
+                placeholder="tu@correo.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -74,7 +71,7 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
+              <Label htmlFor="password">Contraseña</Label>
               <Input
                 id="password"
                 type="password"
@@ -93,20 +90,20 @@ export default function LoginPage() {
               {loginMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Entrando...
+                  Ingresando...
                 </>
               ) : (
-                "Entrar"
+                "Ingresar"
               )}
             </Button>
           </form>
           <div className="mt-4 text-center text-sm">
-            <span className="text-muted-foreground">Não tem uma conta? </span>
+            <span className="text-muted-foreground">¿No tenés una cuenta? </span>
             <button
               onClick={() => router.push("/register")}
               className="text-primary hover:underline"
             >
-              Criar conta
+              Crear cuenta
             </button>
           </div>
         </CardContent>

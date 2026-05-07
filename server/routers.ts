@@ -25,21 +25,20 @@ export const appRouter = router({
     invite: protectedProcedure
       .input(
         z.object({
-          name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
-          email: z.string().email("Email inválido"),
-          whatsapp: z.string().min(10, "Telefone WhatsApp deve ter pelo menos 10 dígitos"),
+          name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
+          email: z.string().email("Correo electrónico inválido"),
+          whatsapp: z.string().min(10, "El teléfono WhatsApp debe tener al menos 10 dígitos"),
         })
       )
       .mutation(async ({ ctx, input }) => {
         if (!ctx.user) {
           throw new TRPCError({ code: "UNAUTHORIZED" });
         }
-        // Verificar se email já existe
         const existingUser = await db.getUserByEmail(input.email);
         if (existingUser) {
           throw new TRPCError({
             code: "CONFLICT",
-            message: "Email já está em uso",
+            message: "El correo electrónico ya está en uso",
           });
         }
         // Gerar openId único
@@ -62,11 +61,10 @@ export const appRouter = router({
         if (!ctx.user) {
           throw new TRPCError({ code: "UNAUTHORIZED" });
         }
-        // Não permitir que o usuário se delete
         if (input.id === ctx.user.id) {
           throw new TRPCError({
             code: "FORBIDDEN",
-            message: "Você não pode remover a si mesmo",
+            message: "No podés eliminarte a vos mismo",
           });
         }
         await db.deleteUser(input.id);
@@ -78,7 +76,7 @@ export const appRouter = router({
     updateProfile: protectedProcedure
       .input(
         z.object({
-          name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
+          name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -121,22 +119,21 @@ export const appRouter = router({
     register: publicProcedure
       .input(
         z.object({
-          name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
-          email: z.string().email("Email inválido"),
-          password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
+          name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
+          email: z.string().email("Correo electrónico inválido"),
+          password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
         })
       )
       .mutation(async ({ ctx, input }) => {
         try {
           console.log("[Register] Iniciando registro para:", input.email);
           
-          // Verificar se email já existe
           const existingUser = await db.getUserByEmail(input.email);
           if (existingUser) {
             console.log("[Register] Email já existe:", input.email);
             throw new TRPCError({
               code: "CONFLICT",
-              message: "Email já está em uso",
+              message: "El correo electrónico ya está en uso",
             });
           }
 
@@ -166,7 +163,7 @@ export const appRouter = router({
             console.error("[Register] Erro: usuário não encontrado após criação");
             throw new TRPCError({
               code: "INTERNAL_SERVER_ERROR",
-              message: "Erro ao criar usuário",
+              message: "Error al crear el usuario",
             });
           }
           console.log("[Register] Usuário encontrado:", user.id);
@@ -198,41 +195,38 @@ export const appRouter = router({
           }
           throw new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
-            message: error.message || "Erro ao criar conta",
+            message: error.message || "Error al crear la cuenta",
           });
         }
       }),
     login: publicProcedure
       .input(
         z.object({
-          email: z.string().email("Email inválido"),
-          password: z.string().min(1, "Senha é obrigatória"),
+          email: z.string().email("Correo electrónico inválido"),
+          password: z.string().min(1, "La contraseña es obligatoria"),
         })
       )
       .mutation(async ({ ctx, input }) => {
-        // Buscar usuário por email
         const user = await db.getUserByEmail(input.email);
         if (!user) {
           throw new TRPCError({
             code: "UNAUTHORIZED",
-            message: "Credenciais inválidas",
+            message: "Credenciales inválidas",
           });
         }
 
-        // Verificar se usuário tem senha (não é usuário OAuth antigo)
         if (!user.password) {
           throw new TRPCError({
             code: "UNAUTHORIZED",
-            message: "Credenciais inválidas",
+            message: "Credenciales inválidas",
           });
         }
 
-        // Verificar senha
         const isValidPassword = await verifyPassword(input.password, user.password);
         if (!isValidPassword) {
           throw new TRPCError({
             code: "UNAUTHORIZED",
-            message: "Credenciais inválidas",
+            message: "Credenciales inválidas",
           });
         }
 
@@ -436,7 +430,7 @@ export const appRouter = router({
         await db.createActivityLog({
           userId: ctx.user.id,
           action: "CREATE_TRANSACTION",
-          details: `Criou transação: ${input.description}`,
+          details: `Creó transacción: ${input.description}`,
         });
         return { success: true, transactionId: newTransaction.id };
       }),
@@ -478,7 +472,7 @@ export const appRouter = router({
         await db.createActivityLog({
           userId: ctx.user.id,
           action: "UPDATE_TRANSACTION",
-          details: `Atualizou transação ID: ${id}`,
+          details: `Actualizó transacción ID: ${id}`,
         });
         return { success: true };
       }),
@@ -496,7 +490,7 @@ export const appRouter = router({
       await db.createActivityLog({
         userId: ctx.user.id,
         action: "DELETE_TRANSACTION",
-        details: `Excluiu transação ID: ${input.id}`,
+        details: `Eliminó transacción ID: ${input.id}`,
       });
       return { success: true };
     }),
@@ -535,7 +529,7 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const attachment = await db.getTransactionAttachmentById(input.id);
         if (!attachment) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Anexo não encontrado" });
+          throw new TRPCError({ code: "NOT_FOUND", message: "Adjunto no encontrado" });
         }
         
         const transaction = await db.getTransactionById(attachment.transactionId);

@@ -7,13 +7,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState, useEffect, useMemo } from "react";
 import { format, startOfMonth, endOfMonth, subDays, startOfDay, endOfDay } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { getDateLocale } from "@/lib/i18n/date";
+import { formatCurrency } from "@/lib/i18n/currency";
+import { useSystemPreferences } from "@/lib/i18n/preferences";
+import { useI18n } from "@/lib/i18n/useI18n";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, Legend, Bar, BarChart, XAxis, YAxis, CartesianGrid } from "recharts";
 import { Button } from "@/components/ui/button";
 
 type PeriodFilter = "today" | "last7days" | "currentMonth" | "custom";
 
 export default function ReportsPage() {
+  const { t } = useI18n();
+  const { language, currency } = useSystemPreferences();
+  const dateLocale = getDateLocale(language);
   const [selectedAccount, setSelectedAccount] = useState<number | null>(null);
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("currentMonth");
   const [customStartDate, setCustomStartDate] = useState("");
@@ -90,19 +96,11 @@ export default function ReportsPage() {
     }
   );
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value / 100);
-  };
-
-  // Preparar dados para gráfico de barras mensal
   const monthlyData = useMemo(() => {
     if (!transactions) return [];
-    
+
     const grouped = transactions.reduce((acc: any, t: any) => {
-      const month = format(new Date(t.transactionDate), "MMM", { locale: ptBR });
+      const month = format(new Date(t.transactionDate), "MMM", { locale: dateLocale });
       if (!acc[month]) {
         acc[month] = { month, income: 0, expense: 0 };
       }
@@ -132,7 +130,7 @@ export default function ReportsPage() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center space-y-4">
-          <p className="text-muted-foreground">Você ainda não possui nenhuma conta.</p>
+          <p className="text-muted-foreground">{t("common.noAccounts")}</p>
         </div>
       </div>
     );
@@ -141,8 +139,8 @@ export default function ReportsPage() {
   return (
     <div className="p-8 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-primary">Relatórios</h1>
-        <p className="text-muted-foreground mt-1">Análises e relatórios financeiros</p>
+        <h1 className="text-3xl font-bold text-primary">{t("reports.title")}</h1>
+        <p className="text-muted-foreground mt-1">{t("reports.subtitle")}</p>
       </div>
 
       {/* Filtros de Período */}
@@ -152,35 +150,35 @@ export default function ReportsPage() {
           size="sm"
           onClick={() => setPeriodFilter("today")}
         >
-          Hoje
+          {t("dashboard.today")}
         </Button>
         <Button
           variant={periodFilter === "last7days" ? "default" : "outline"}
           size="sm"
           onClick={() => setPeriodFilter("last7days")}
         >
-          Últimos 7 dias
+          {t("dashboard.last7Days")}
         </Button>
         <Button
           variant={periodFilter === "currentMonth" ? "default" : "outline"}
           size="sm"
           onClick={() => setPeriodFilter("currentMonth")}
         >
-          Mês atual
+          {t("dashboard.currentMonth")}
         </Button>
         <Button
           variant={periodFilter === "custom" ? "default" : "outline"}
           size="sm"
           onClick={() => setPeriodFilter("custom")}
         >
-          Personalizado
+          {t("dashboard.custom")}
         </Button>
       </div>
 
       {periodFilter === "custom" && (
         <div className="grid grid-cols-2 gap-4">
           <div className="grid gap-2">
-            <Label>Data Inicial</Label>
+            <Label>{t("dashboard.startDate")}</Label>
             <Input
               type="date"
               value={customStartDate}
@@ -188,7 +186,7 @@ export default function ReportsPage() {
             />
           </div>
           <div className="grid gap-2">
-            <Label>Data Final</Label>
+            <Label>{t("dashboard.endDate")}</Label>
             <Input
               type="date"
               value={customEndDate}
@@ -202,42 +200,42 @@ export default function ReportsPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Receitas</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("dashboard.income")}</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
               <Skeleton className="h-8 w-32" />
             ) : (
               <div className="text-2xl font-bold text-green-500">
-                {formatCurrency(summary?.income || 0)}
+                {formatCurrency(summary?.income || 0, { language, currency })}
               </div>
             )}
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Despesas</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("dashboard.expense")}</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
               <Skeleton className="h-8 w-32" />
             ) : (
               <div className="text-2xl font-bold text-destructive">
-                {formatCurrency(summary?.expense || 0)}
+                {formatCurrency(summary?.expense || 0, { language, currency })}
               </div>
             )}
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Saldo</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("reports.balance")}</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
               <Skeleton className="h-8 w-32" />
             ) : (
               <div className={`text-2xl font-bold ${(summary?.balance || 0) >= 0 ? "text-primary" : "text-destructive"}`}>
-                {formatCurrency(summary?.balance || 0)}
+                {formatCurrency(summary?.balance || 0, { language, currency })}
               </div>
             )}
           </CardContent>
@@ -248,7 +246,7 @@ export default function ReportsPage() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Despesas por Categoria</CardTitle>
+            <CardTitle>{t("dashboard.expensesByCategory")}</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -263,19 +261,21 @@ export default function ReportsPage() {
                     cx="50%"
                     cy="50%"
                     outerRadius={100}
-                    label={(entry: { categoryName: string; total: number }) => `${entry.categoryName}: ${formatCurrency(entry.total)}`}
+                    label={(entry: { categoryName: string; total: number }) =>
+                      `${entry.categoryName}: ${formatCurrency(entry.total, { language, currency })}`
+                    }
                   >
                     {expensesByCategory.map((entry: { categoryColor: string }, index: number) => (
                       <Cell key={`cell-${index}`} fill={entry.categoryColor} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                  <Tooltip formatter={(value: number) => formatCurrency(value, { language, currency })} />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
               <div className="h-64 flex items-center justify-center text-muted-foreground">
-                Nenhuma despesa neste período
+                {t("dashboard.noExpenses")}
               </div>
             )}
           </CardContent>
@@ -283,7 +283,7 @@ export default function ReportsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Receitas vs Despesas</CardTitle>
+            <CardTitle>{t("reports.incomeVsExpense")}</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -294,15 +294,15 @@ export default function ReportsPage() {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
                   <YAxis />
-                  <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                  <Tooltip formatter={(value: number) => formatCurrency(value, { language, currency })} />
                   <Legend />
-                  <Bar dataKey="income" fill="#10B981" name="Receitas" />
-                  <Bar dataKey="expense" fill="#EF4444" name="Despesas" />
+                  <Bar dataKey="income" fill="#10B981" name="Ingresos" />
+                  <Bar dataKey="expense" fill="#EF4444" name="Gastos" />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
               <div className="h-64 flex items-center justify-center text-muted-foreground">
-                Nenhum dado disponível
+                {t("common.noData")}
               </div>
             )}
           </CardContent>

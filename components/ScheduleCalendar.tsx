@@ -2,7 +2,9 @@
 
 import { useState, useMemo } from "react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, isSameMonth, addMonths, subMonths } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { getDateLocale } from "@/lib/i18n/date";
+import { formatCurrency } from "@/lib/i18n/currency";
+import { useSystemPreferences } from "@/lib/i18n/preferences";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,6 +25,8 @@ interface ScheduleCalendarProps {
 }
 
 export default function ScheduleCalendar({ scheduledPayments, accountId, onPaymentUpdate, initialDate }: ScheduleCalendarProps) {
+  const { language, currency } = useSystemPreferences();
+  const dateLocale = getDateLocale(language);
   const [currentMonth, setCurrentMonth] = useState(initialDate || new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [selectedPayments, setSelectedPayments] = useState<any[]>([]);
@@ -50,13 +54,6 @@ export default function ScheduleCalendar({ scheduledPayments, accountId, onPayme
     return grouped;
   }, [scheduledPayments]);
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value / 100);
-  };
-
   const handleDayClick = (day: Date) => {
     const dateKey = format(day, "yyyy-MM-dd");
     const payments = paymentsByDate[dateKey] || [];
@@ -77,7 +74,9 @@ export default function ScheduleCalendar({ scheduledPayments, accountId, onPayme
     setCurrentMonth(addMonths(currentMonth, 1));
   };
 
-  const weekDays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+  const weekDays = language.startsWith("pt")
+    ? ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"]
+    : ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
   return (
     <div className="space-y-4">
@@ -86,7 +85,7 @@ export default function ScheduleCalendar({ scheduledPayments, accountId, onPayme
         <div className="flex items-center gap-2">
           <CalendarIcon className="w-5 h-5 text-primary" />
           <h2 className="text-xl font-semibold">
-            {format(currentMonth, "MMMM yyyy", { locale: ptBR })}
+            {format(currentMonth, "MMMM yyyy", { locale: dateLocale })}
           </h2>
         </div>
         <div className="flex items-center gap-2">
@@ -159,13 +158,13 @@ export default function ScheduleCalendar({ scheduledPayments, accountId, onPayme
                       >
                         <div className="truncate font-medium">{payment.description}</div>
                         <div className="text-[10px] opacity-90 mt-0.5">
-                          {formatCurrency(payment.amount)}
+                          {formatCurrency(payment.amount, { language, currency })}
                         </div>
                       </div>
                     ))}
                     {hiddenCount > 0 && (
                       <div className="text-[10px] text-muted-foreground px-1.5 py-0.5">
-                        +{hiddenCount} mais
+                        +{hiddenCount} más
                       </div>
                     )}
                   </div>
@@ -181,12 +180,12 @@ export default function ScheduleCalendar({ scheduledPayments, accountId, onPayme
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>
-              {selectedDay && format(selectedDay, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+              {selectedDay && format(selectedDay, "dd 'de' MMMM 'de' yyyy", { locale: dateLocale })}
             </DialogTitle>
             <DialogDescription>
               {selectedPayments.length > 0
-                ? `${selectedPayments.length} pagamento(s) agendado(s)`
-                : "Nenhum pagamento agendado para este dia"}
+                ? `${selectedPayments.length} pago(s) programado(s)`
+                : "No hay pagos programados para este día"}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 max-h-[400px] overflow-y-auto">
@@ -202,7 +201,7 @@ export default function ScheduleCalendar({ scheduledPayments, accountId, onPayme
                     <div className="flex-1">
                       <p className="font-medium">{payment.description}</p>
                       <p className="text-sm text-muted-foreground">
-                        {formatCurrency(payment.amount)}
+                        {formatCurrency(payment.amount, { language, currency })}
                       </p>
                     </div>
                     <ScheduledPaymentDialog
@@ -219,7 +218,7 @@ export default function ScheduleCalendar({ scheduledPayments, accountId, onPayme
               ))
             ) : (
               <div className="text-center py-8 text-muted-foreground">
-                <p>Nenhum pagamento agendado para este dia.</p>
+                <p>No hay pagos programados para este día.</p>
                 {selectedDay && (
                   <div className="mt-4">
                     <ScheduledPaymentDialog
@@ -231,7 +230,7 @@ export default function ScheduleCalendar({ scheduledPayments, accountId, onPayme
                       }}
                     >
                       <Button variant="outline">
-                        Criar Agendamento
+                        Crear Pago Programado
                       </Button>
                     </ScheduledPaymentDialog>
                   </div>

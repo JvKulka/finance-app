@@ -16,6 +16,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { trpc } from "@/lib/trpc/client";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { convertFromBaseCurrency, getAppCurrencySymbol, parseCurrencyInput } from "@/lib/i18n/currency";
+import { useSystemPreferences } from "@/lib/i18n/preferences";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 interface ScheduledPaymentDialogProps {
   children: React.ReactNode;
@@ -26,9 +29,15 @@ interface ScheduledPaymentDialogProps {
 }
 
 export default function ScheduledPaymentDialog({ children, accountId, payment, initialDate, onSuccess }: ScheduledPaymentDialogProps) {
+  const { locale } = useI18n();
+  const isPt = locale === "pt";
+  const { currency } = useSystemPreferences();
+  const currencySymbol = getAppCurrencySymbol(currency);
   const [open, setOpen] = useState(false);
   const [description, setDescription] = useState(payment?.description || "");
-  const [amount, setAmount] = useState(payment?.amount ? (payment.amount / 100).toFixed(2) : "");
+  const [amount, setAmount] = useState(
+    payment?.amount ? String(convertFromBaseCurrency(payment.amount, currency)) : ""
+  );
   const [dueDate, setDueDate] = useState(
     payment?.dueDate 
       ? new Date(payment.dueDate).toISOString().split("T")[0] 
@@ -61,7 +70,7 @@ export default function ScheduledPaymentDialog({ children, accountId, payment, i
       setIsPriority(false);
     } else if (open && payment) {
       setDescription(payment.description || "");
-      setAmount(payment.amount ? (payment.amount / 100).toFixed(2) : "");
+      setAmount(payment.amount ? String(convertFromBaseCurrency(payment.amount, currency)) : "");
       setDueDate(payment.dueDate ? new Date(payment.dueDate).toISOString().split("T")[0] : "");
       setCategoryId(payment.categoryId?.toString() || "");
       setCreditCardId(payment.creditCardId?.toString() || "");
@@ -69,29 +78,29 @@ export default function ScheduledPaymentDialog({ children, accountId, payment, i
       setRecurrenceFrequency(payment.recurrenceFrequency || "monthly");
       setIsPriority(payment.isPriority || false);
     }
-  }, [open, payment]);
+  }, [open, payment, currency]);
 
   const createMutation = trpc.scheduledPayments.create.useMutation({
     onSuccess: () => {
-      toast.success("Pagamento agendado criado com sucesso!");
+      toast.success(isPt ? "Pagamento programado criado com sucesso!" : "¡Pago programado creado con éxito!");
       setOpen(false);
       utils.scheduledPayments.list.invalidate();
       onSuccess?.();
     },
     onError: (error) => {
-      toast.error(`Erro ao criar agendamento: ${error.message}`);
+      toast.error(`${isPt ? "Erro ao criar pagamento programado" : "Error al crear el pago programado"}: ${error.message}`);
     },
   });
 
   const updateMutation = trpc.scheduledPayments.update.useMutation({
     onSuccess: () => {
-      toast.success("Pagamento agendado atualizado com sucesso!");
+      toast.success(isPt ? "Pagamento programado atualizado com sucesso!" : "¡Pago programado actualizado con éxito!");
       setOpen(false);
       utils.scheduledPayments.list.invalidate();
       onSuccess?.();
     },
     onError: (error) => {
-      toast.error(`Erro ao atualizar agendamento: ${error.message}`);
+      toast.error(`${isPt ? "Erro ao atualizar pagamento programado" : "Error al actualizar el pago programado"}: ${error.message}`);
     },
   });
 
@@ -99,32 +108,31 @@ export default function ScheduledPaymentDialog({ children, accountId, payment, i
     e.preventDefault();
 
     if (!description.trim()) {
-      toast.error("Por favor, informe a descrição");
+      toast.error(isPt ? "Por favor, informe a descrição" : "Por favor, ingresá la descripción");
       return;
     }
 
     if (!categoryId) {
-      toast.error("Por favor, selecione uma categoria");
+      toast.error(isPt ? "Por favor, selecione uma categoria" : "Por favor, seleccioná una categoría");
       return;
     }
 
-    if (!amount || parseFloat(amount) <= 0) {
-      toast.error("Por favor, informe um valor válido");
+    const amountValue = parseCurrencyInput(amount, { currency });
+    if (!Number.isFinite(amountValue) || amountValue <= 0) {
+      toast.error(isPt ? "Por favor, informe um valor válido" : "Por favor, ingresá un monto válido");
       return;
     }
 
     if (!dueDate) {
-      toast.error("Por favor, informe a data de vencimento");
+      toast.error(isPt ? "Por favor, informe a data de vencimento" : "Por favor, ingresá la fecha de vencimiento");
       return;
     }
-
-    const amountInCents = Math.round(parseFloat(amount) * 100);
 
     if (payment) {
       updateMutation.mutate({
         id: payment.id,
         description: description.trim(),
-        amount: amountInCents,
+        amount: amountValue,
         dueDate,
         isPriority,
       });
@@ -134,7 +142,7 @@ export default function ScheduledPaymentDialog({ children, accountId, payment, i
         categoryId: parseInt(categoryId),
         creditCardId: creditCardId ? parseInt(creditCardId) : undefined,
         description: description.trim(),
-        amount: amountInCents,
+        amount: amountValue,
         dueDate,
         isRecurring,
         recurrenceFrequency: isRecurring ? recurrenceFrequency : undefined,
@@ -151,17 +159,19 @@ export default function ScheduledPaymentDialog({ children, accountId, payment, i
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>{payment ? "Editar Agendamento" : "Novo Pagamento Agendado"}</DialogTitle>
+            <DialogTitle>{payment ? (isPt ? "Editar Pagamento Programado" : "Editar Pago Programado") : (isPt ? "Novo Pagamento Programado" : "Nuevo Pago Programado")}</DialogTitle>
             <DialogDescription>
-              {payment ? "Atualize os dados do pagamento agendado" : "Agende um pagamento futuro"}
+              {payment
+                ? isPt ? "Atualize os dados do pagamento programado" : "Actualizá los datos del pago programado"
+                : isPt ? "Programe um pagamento futuro" : "Programá un pago futuro"}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="description">Descrição</Label>
+              <Label htmlFor="description">{isPt ? "Descrição" : "Descripción"}</Label>
               <Input
                 id="description"
-                placeholder="Ex: Conta de luz, Aluguel"
+                placeholder={isPt ? "Ex: Conta de luz, Aluguel" : "Ej: Factura de luz, Alquiler"}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 disabled={isPending}
@@ -171,13 +181,13 @@ export default function ScheduledPaymentDialog({ children, accountId, payment, i
 
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="amount">Valor (R$)</Label>
+                <Label htmlFor="amount">{isPt ? "Valor" : "Monto"} ({currencySymbol})</Label>
                 <Input
                   id="amount"
                   type="number"
-                  step="0.01"
+                  step="1"
                   min="0"
-                  placeholder="0,00"
+                  placeholder="0"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   disabled={isPending}
@@ -185,7 +195,7 @@ export default function ScheduledPaymentDialog({ children, accountId, payment, i
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="dueDate">Data de Vencimento</Label>
+                <Label htmlFor="dueDate">{isPt ? "Data de Vencimento" : "Fecha de Vencimiento"}</Label>
                 <Input
                   id="dueDate"
                   type="date"
@@ -198,10 +208,10 @@ export default function ScheduledPaymentDialog({ children, accountId, payment, i
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="category">Categoria</Label>
+              <Label htmlFor="category">{isPt ? "Categoria" : "Categoría"}</Label>
               <Select value={categoryId || undefined} onValueChange={(value) => setCategoryId(value || "")} disabled={isPending}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione uma categoria" />
+                  <SelectValue placeholder={isPt ? "Selecione uma categoria" : "Seleccioná una categoría"} />
                 </SelectTrigger>
                 <SelectContent>
                   {categories && categories.length > 0 ? (
@@ -211,17 +221,17 @@ export default function ScheduledPaymentDialog({ children, accountId, payment, i
                       </SelectItem>
                     ))
                   ) : (
-                    <div className="px-2 py-1.5 text-sm text-muted-foreground">Nenhuma categoria disponível</div>
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">{isPt ? "Não há categorias disponíveis" : "No hay categorías disponibles"}</div>
                   )}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="creditCard">Cartão de Crédito (opcional)</Label>
+              <Label htmlFor="creditCard">{isPt ? "Cartão de Crédito (opcional)" : "Tarjeta de Crédito (opcional)"}</Label>
               <Select value={creditCardId || undefined} onValueChange={(value) => setCreditCardId(value || "")} disabled={isPending}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Nenhum" />
+                  <SelectValue placeholder={isPt ? "Nenhum" : "Ninguna"} />
                 </SelectTrigger>
                 <SelectContent>
                   {creditCards && creditCards.length > 0 ? (
@@ -231,7 +241,7 @@ export default function ScheduledPaymentDialog({ children, accountId, payment, i
                       </SelectItem>
                     ))
                   ) : (
-                    <div className="px-2 py-1.5 text-sm text-muted-foreground">Nenhum cartão disponível</div>
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">{isPt ? "Não há cartões disponíveis" : "No hay tarjetas disponibles"}</div>
                   )}
                 </SelectContent>
               </Select>
@@ -247,13 +257,13 @@ export default function ScheduledPaymentDialog({ children, accountId, payment, i
                     disabled={isPending}
                   />
                   <Label htmlFor="isRecurring" className="cursor-pointer">
-                    Pagamento recorrente
+                    {isPt ? "Pagamento recorrente" : "Pago recurrente"}
                   </Label>
                 </div>
 
                 {isRecurring && (
                   <div className="grid gap-2">
-                    <Label htmlFor="recurrenceFrequency">Frequência</Label>
+                    <Label htmlFor="recurrenceFrequency">{isPt ? "Frequência" : "Frecuencia"}</Label>
                     <Select
                       value={recurrenceFrequency}
                       onValueChange={(value) => setRecurrenceFrequency(value as "daily" | "weekly" | "monthly" | "yearly")}
@@ -263,10 +273,10 @@ export default function ScheduledPaymentDialog({ children, accountId, payment, i
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="daily">Diário</SelectItem>
-                        <SelectItem value="weekly">Semanal</SelectItem>
-                        <SelectItem value="monthly">Mensal</SelectItem>
-                        <SelectItem value="yearly">Anual</SelectItem>
+                        <SelectItem value="daily">{isPt ? "Diário" : "Diario"}</SelectItem>
+                        <SelectItem value="weekly">{isPt ? "Semanal" : "Semanal"}</SelectItem>
+                        <SelectItem value="monthly">{isPt ? "Mensal" : "Mensual"}</SelectItem>
+                        <SelectItem value="yearly">{isPt ? "Anual" : "Anual"}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -282,17 +292,17 @@ export default function ScheduledPaymentDialog({ children, accountId, payment, i
                 disabled={isPending}
               />
               <Label htmlFor="isPriority" className="cursor-pointer">
-                Prioridade alta
+                {isPt ? "Prioridade alta" : "Prioridad alta"}
               </Label>
             </div>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
-              Cancelar
+              {isPt ? "Cancelar" : "Cancelar"}
             </Button>
             <Button type="submit" disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {payment ? "Atualizar" : "Criar"}
+              {payment ? (isPt ? "Atualizar" : "Actualizar") : (isPt ? "Criar" : "Crear")}
             </Button>
           </DialogFooter>
         </form>

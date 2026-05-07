@@ -22,17 +22,15 @@ export default function RegisterPage() {
 
   const registerMutation = trpc.auth.register.useMutation({
     onSuccess: async (user) => {
-      // Invalidar e refetch a query auth.me para atualizar o estado de autenticação
       await utils.auth.me.invalidate();
       await utils.auth.me.refetch();
-      
-      toast.success(`Conta criada com sucesso! Bem-vindo, ${user.name}!`);
-      
-      // Usar window.location para garantir que a página seja recarregada e o cookie seja lido
+
+      toast.success(`¡Cuenta creada con éxito! Bienvenido, ${user.name}!`);
+
       window.location.href = "/dashboard";
     },
     onError: (error) => {
-      toast.error(error.message || "Erro ao criar conta");
+      toast.error(error.message || "Error al crear la cuenta");
     },
   });
 
@@ -40,12 +38,12 @@ export default function RegisterPage() {
     e.preventDefault();
 
     if (password !== confirmPassword) {
-      toast.error("As senhas não coincidem");
+      toast.error("Las contraseñas no coinciden");
       return;
     }
 
     if (password.length < 6) {
-      toast.error("A senha deve ter pelo menos 6 caracteres");
+      toast.error("La contraseña debe tener al menos 6 caracteres");
       return;
     }
 
@@ -66,20 +64,20 @@ export default function RegisterPage() {
             />
           </div>
           <div className="space-y-1 text-center">
-            <CardTitle className="text-2xl font-bold">Criar Conta</CardTitle>
+            <CardTitle className="text-2xl font-bold">Crear Cuenta</CardTitle>
             <CardDescription>
-              Preencha os dados abaixo para criar sua conta
+              Completá los datos para crear tu cuenta
             </CardDescription>
           </div>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Nome</Label>
+              <Label htmlFor="name">Nombre</Label>
               <Input
                 id="name"
                 type="text"
-                placeholder="Seu nome completo"
+                placeholder="Tu nombre completo"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
@@ -88,11 +86,11 @@ export default function RegisterPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Correo electrónico</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="seu@email.com"
+                placeholder="tu@correo.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -100,7 +98,7 @@ export default function RegisterPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
+              <Label htmlFor="password">Contraseña</Label>
               <Input
                 id="password"
                 type="password"
@@ -113,7 +111,7 @@ export default function RegisterPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirmar Senha</Label>
+              <Label htmlFor="confirmPassword">Confirmar Contraseña</Label>
               <Input
                 id="confirmPassword"
                 type="password"
@@ -133,20 +131,20 @@ export default function RegisterPage() {
               {registerMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Criando conta...
+                  Creando cuenta...
                 </>
               ) : (
-                "Criar Conta"
+                "Crear Cuenta"
               )}
             </Button>
           </form>
           <div className="mt-4 text-center text-sm">
-            <span className="text-muted-foreground">Já tem uma conta? </span>
+            <span className="text-muted-foreground">¿Ya tenés una cuenta? </span>
             <button
               onClick={() => router.push("/login")}
               className="text-primary hover:underline"
             >
-              Fazer login
+              Iniciar sesión
             </button>
           </div>
         </CardContent>

@@ -7,6 +7,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import CreditCardDialog from "@/components/CreditCardDialog";
 import { Plus, Trash2, Edit } from "lucide-react";
 import { useState, useEffect } from "react";
+import { formatCurrency } from "@/lib/i18n/currency";
+import { useSystemPreferences } from "@/lib/i18n/preferences";
+import { useI18n } from "@/lib/i18n/useI18n";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,6 +23,8 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function CreditCardsPage() {
+  const { t } = useI18n();
+  const { language, currency } = useSystemPreferences();
   const [selectedAccount, setSelectedAccount] = useState<number | null>(null);
   
   const { data: accounts, isLoading: accountsLoading } = trpc.accounts.list.useQuery();
@@ -41,13 +46,6 @@ export default function CreditCardsPage() {
     },
   });
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value / 100);
-  };
-
   if (accountsLoading) {
     return (
       <div className="p-8 space-y-6">
@@ -61,7 +59,7 @@ export default function CreditCardsPage() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center space-y-4">
-          <p className="text-muted-foreground">Você ainda não possui nenhuma conta.</p>
+          <p className="text-muted-foreground">{t("common.noAccounts")}</p>
         </div>
       </div>
     );
@@ -71,14 +69,14 @@ export default function CreditCardsPage() {
     <div className="p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-primary">Cartões de Crédito</h1>
-          <p className="text-muted-foreground mt-1">Gerencie seus cartões de crédito</p>
+          <h1 className="text-3xl font-bold text-primary">{t("creditCards.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("creditCards.subtitle")}</p>
         </div>
         {selectedAccount && (
           <CreditCardDialog accountId={selectedAccount} onSuccess={() => refetch()}>
             <Button className="gap-2">
               <Plus className="w-4 h-4" />
-              Novo Cartão
+              {t("creditCards.newCard")}
             </Button>
           </CreditCardDialog>
         )}
@@ -133,18 +131,18 @@ export default function CreditCardsPage() {
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Excluir Cartão</AlertDialogTitle>
+                          <AlertDialogTitle>{t("creditCards.deleteTitle")}</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Tem certeza que deseja excluir o cartão {card.name}? Esta ação não pode ser desfeita.
+                            {t("creditCards.deleteDescription").replace("{name}", card.name)}
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
                           <AlertDialogAction
                             onClick={() => deleteMutation.mutate({ id: card.id })}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                           >
-                            Excluir
+                            {t("common.delete")}
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
@@ -154,25 +152,27 @@ export default function CreditCardsPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <p className="text-sm text-muted-foreground">Últimos 4 dígitos</p>
+                  <p className="text-sm text-muted-foreground">{t("creditCards.lastFour")}</p>
                   <p className="text-lg font-semibold">•••• {card.lastFourDigits}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Bandeira</p>
+                  <p className="text-sm text-muted-foreground">{t("creditCards.brand")}</p>
                   <p className="font-medium">{card.brand}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Limite</p>
-                  <p className="text-lg font-semibold">{formatCurrency(card.creditLimit)}</p>
+                  <p className="text-sm text-muted-foreground">{t("creditCards.limit")}</p>
+                  <p className="text-lg font-semibold">
+                    {formatCurrency(card.creditLimit, { language, currency })}
+                  </p>
                 </div>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <p className="text-muted-foreground">Fechamento</p>
-                    <p className="font-medium">Dia {card.closingDay}</p>
+                    <p className="text-muted-foreground">{t("creditCards.closingDay")}</p>
+                    <p className="font-medium">{t("creditCards.day")} {card.closingDay}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Vencimento</p>
-                    <p className="font-medium">Dia {card.dueDay}</p>
+                    <p className="text-muted-foreground">{t("creditCards.dueDay")}</p>
+                    <p className="font-medium">{t("creditCards.day")} {card.dueDay}</p>
                   </div>
                 </div>
               </CardContent>
@@ -184,7 +184,7 @@ export default function CreditCardsPage() {
         <Card>
           <CardContent className="py-8">
             <div className="text-center text-muted-foreground">
-              Nenhum cartão cadastrado
+              {t("creditCards.noneFound")}
             </div>
           </CardContent>
         </Card>

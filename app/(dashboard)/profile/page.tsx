@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Edit } from "lucide-react";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { getDateLocale } from "@/lib/i18n/date";
 import { useState, useEffect } from "react";
+import { useSystemPreferences } from "@/lib/i18n/preferences";
 import {
   Dialog,
   DialogContent,
@@ -22,8 +23,12 @@ import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc/client";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 export default function ProfilePage() {
+  const { t } = useI18n();
+  const { language } = useSystemPreferences();
+  const dateLocale = getDateLocale(language);
   const { user, loading, refresh } = useAuth();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
@@ -38,13 +43,13 @@ export default function ProfilePage() {
 
   const updateMutation = trpc.auth.updateProfile.useMutation({
     onSuccess: () => {
-      toast.success("Perfil atualizado com sucesso!");
+      toast.success(t("profile.saveSuccess"));
       setIsEditDialogOpen(false);
       refresh();
       utils.auth.me.invalidate();
     },
     onError: (error) => {
-      toast.error(`Erro ao atualizar perfil: ${error.message}`);
+      toast.error(`${t("profile.saveErrorPrefix")}${error.message}`);
     },
   });
 
@@ -58,19 +63,19 @@ export default function ProfilePage() {
   };
 
   const formatDate = (date: Date | string | null | undefined) => {
-    if (!date) return "Não disponível";
-    return format(new Date(date), "dd/MM/yyyy", { locale: ptBR });
+    if (!date) return t("profile.notAvailable");
+    return format(new Date(date), "dd/MM/yyyy", { locale: dateLocale });
   };
 
   const getRoleLabel = (role: string | null | undefined) => {
-    if (role === "admin") return "Administrador";
-    if (role === "user") return "Usuário";
-    return "Não definido";
+    if (role === "admin") return t("profile.admin");
+    if (role === "user") return t("profile.user");
+    return t("profile.undefinedRole");
   };
 
   const handleSave = () => {
     if (!name.trim()) {
-      toast.error("Por favor, informe o nome");
+      toast.error(t("profile.nameRequired"));
       return;
     }
     updateMutation.mutate({ name: name.trim() });
@@ -97,20 +102,20 @@ export default function ProfilePage() {
   return (
     <div className="p-8 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-primary">Perfil</h1>
-        <p className="text-muted-foreground mt-1">Gerencie suas informações pessoais</p>
+        <h1 className="text-3xl font-bold text-primary">{t("profile.title")}</h1>
+        <p className="text-muted-foreground mt-1">{t("profile.subtitle")}</p>
       </div>
 
-      {/* Informações Pessoais */}
+      {/* Información Personal */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Informações Pessoais</CardTitle>
-            <CardDescription>Atualize seus dados de perfil</CardDescription>
+            <CardTitle>{t("profile.personalInfo")}</CardTitle>
+            <CardDescription>{t("profile.personalInfoDesc")}</CardDescription>
           </div>
           <Button onClick={() => setIsEditDialogOpen(true)} className="gap-2">
             <Edit className="w-4 h-4" />
-            Editar Perfil
+            {t("profile.editProfile")}
           </Button>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -122,83 +127,83 @@ export default function ProfilePage() {
               </AvatarFallback>
             </Avatar>
             <div>
-              <p className="font-medium">Foto de perfil</p>
+              <p className="font-medium">{t("profile.profilePhoto")}</p>
               <p className="text-sm text-muted-foreground">
-                As iniciais do seu nome são usadas como avatar
+                {t("profile.profilePhotoHint")}
               </p>
             </div>
           </div>
 
-          {/* Nome Completo */}
+          {/* Nombre Completo */}
           <div>
-            <label className="text-sm font-medium text-muted-foreground">Nome Completo</label>
-            <p className="text-lg font-medium mt-1">{displayUser?.name || "Não informado"}</p>
+            <label className="text-sm font-medium text-muted-foreground">{t("profile.fullName")}</label>
+            <p className="text-lg font-medium mt-1">{displayUser?.name || t("profile.notInformed")}</p>
           </div>
 
-          {/* E-mail */}
+          {/* Correo */}
           <div>
-            <label className="text-sm font-medium text-muted-foreground">E-mail</label>
-            <p className="text-lg font-medium mt-1">{displayUser?.email || "Não informado"}</p>
+            <label className="text-sm font-medium text-muted-foreground">{t("profile.email")}</label>
+            <p className="text-lg font-medium mt-1">{displayUser?.email || t("profile.notInformed")}</p>
           </div>
 
           {/* Método de Login */}
           <div>
-            <label className="text-sm font-medium text-muted-foreground">Método de Login</label>
-            <p className="text-lg font-medium mt-1">{displayUser?.loginMethod || "Não informado"}</p>
+            <label className="text-sm font-medium text-muted-foreground">{t("profile.loginMethod")}</label>
+            <p className="text-lg font-medium mt-1">{displayUser?.loginMethod || t("profile.notInformed")}</p>
           </div>
 
-          {/* Função */}
+          {/* Rol */}
           <div>
-            <label className="text-sm font-medium text-muted-foreground">Função</label>
+            <label className="text-sm font-medium text-muted-foreground">{t("profile.role")}</label>
             <p className="text-lg font-medium mt-1">{getRoleLabel(displayUser?.role)}</p>
           </div>
         </CardContent>
       </Card>
 
-      {/* Informações da Conta */}
+      {/* Información de la Cuenta */}
       <Card>
         <CardHeader>
-          <CardTitle>Informações da Conta</CardTitle>
-          <CardDescription>Detalhes sobre sua conta no sistema</CardDescription>
+          <CardTitle>{t("profile.accountInfo")}</CardTitle>
+          <CardDescription>{t("profile.accountInfoDesc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-6">
             <div>
-              <label className="text-sm font-medium text-muted-foreground">Data de Criação</label>
+              <label className="text-sm font-medium text-muted-foreground">{t("profile.createdAt")}</label>
               <p className="text-lg font-medium mt-1">
-                {displayUser?.createdAt ? formatDate(displayUser.createdAt) : "Não disponível"}
+                {displayUser?.createdAt ? formatDate(displayUser.createdAt) : t("profile.notAvailable")}
               </p>
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground">Último Acesso</label>
+              <label className="text-sm font-medium text-muted-foreground">{t("profile.lastAccess")}</label>
               <p className="text-lg font-medium mt-1">
-                {displayUser?.lastSignedIn ? formatDate(displayUser.lastSignedIn) : "Não disponível"}
+                {displayUser?.lastSignedIn ? formatDate(displayUser.lastSignedIn) : t("profile.notAvailable")}
               </p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Dialog de Edição */}
+      {/* Dialog de Edición */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Editar Perfil</DialogTitle>
-            <DialogDescription>Atualize suas informações pessoais</DialogDescription>
+            <DialogTitle>{t("profile.editTitle")}</DialogTitle>
+            <DialogDescription>{t("profile.editDescription")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="name">Nome Completo</Label>
+              <Label htmlFor="name">{t("profile.fullName")}</Label>
               <Input
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Seu nome completo"
+                placeholder={t("profile.fullNamePlaceholder")}
                 disabled={updateMutation.isPending}
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="email">E-mail</Label>
+              <Label htmlFor="email">{t("profile.email")}</Label>
               <Input
                 id="email"
                 value={displayUser?.email || ""}
@@ -206,7 +211,7 @@ export default function ProfilePage() {
                 className="bg-muted"
               />
               <p className="text-xs text-muted-foreground">
-                O e-mail não pode ser alterado
+                {t("profile.emailReadonly")}
               </p>
             </div>
           </div>
@@ -216,11 +221,11 @@ export default function ProfilePage() {
               onClick={() => setIsEditDialogOpen(false)}
               disabled={updateMutation.isPending}
             >
-              Cancelar
+              {t("common.cancel")}
             </Button>
             <Button onClick={handleSave} disabled={updateMutation.isPending}>
               {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Salvar
+              {t("profile.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
