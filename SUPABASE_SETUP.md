@@ -136,6 +136,15 @@ As políticas RLS estão configuradas de forma básica. Para produção, você d
 - Temporariamente, você pode desabilitar RLS nas tabelas
 - Ou ajustar as políticas para permitir acesso durante desenvolvimento
 
+### Recuperação de senha (Supabase Auth)
+
+O e-mail de “esqueci a senha” usa **Supabase Auth** (`resetPasswordForEmail`). Configure:
+
+1. **Authentication → URL configuration**: **Site URL** com a URL base do app (ex.: `http://localhost:3000` em dev).
+2. **Redirect URLs**: inclua `{Site URL}/auth/recuperar-senha` (ex.: `http://localhost:3000/auth/recuperar-senha` e o equivalente em produção).
+3. Opcional (recomendado em produção): variável **`NEXT_PUBLIC_APP_URL`** com a mesma URL base (sem barra final), para o servidor montar o `redirectTo` corretamente.
+4. **Authentication → Emails**: confirme SMTP ou o provedor padrão para o envio dos e-mails.
+
 ## 📚 Recursos
 
 - [Documentação do Supabase](https://supabase.com/docs)

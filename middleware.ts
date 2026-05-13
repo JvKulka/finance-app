@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { COOKIE_NAME } from "./shared/const";
 
 // Rotas que não requerem autenticação
-const publicRoutes = ["/login", "/register"];
+const publicRoutes = ["/login", "/register", "/recuperar-senha", "/auth/recuperar-senha"];
 
 // Rotas que requerem autenticação
 const protectedRoutes = ["/dashboard", "/transactions", "/categories", "/goals", "/schedule", "/credit-cards", "/reports", "/profile", "/settings"];
@@ -32,8 +32,9 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Se está autenticado e tentando acessar login/register, redirecionar para dashboard
-  if (isPublicRoute && sessionCookie) {
+  // Se está autenticado e tentando acessar login/register/recuperar, redirecionar para dashboard
+  // (exceção: callback do e-mail de recuperação do Supabase em /auth/recuperar-senha)
+  if (isPublicRoute && sessionCookie && pathname !== "/auth/recuperar-senha") {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 

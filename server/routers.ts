@@ -8,6 +8,7 @@ import { sdk } from "./_core/sdk";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "../lib/server/trpc";
 import * as db from "../lib/server/db";
+import { getSiteOrigin } from "../lib/server/site-url";
 import { supabaseServer } from "../lib/supabase/server";
 
 export const appRouter = router({
@@ -72,7 +73,132 @@ export const appRouter = router({
       }),
   }),
   auth: router({
-    me: publicProcedure.query((opts) => opts.ctx.user),
+    me: publicProcedure.query((opts) => {
+      const u = opts.ctx.user;
+      if (!u) return null;
+      const hasLocalPassword = Boolean(u.password);
+      const { password: _pw, ...safe } = u;
+      return { ...safe, hasLocalPassword };
+    }),
+    changePassword: protectedProcedure
+      .input(
+        z.object({
+          currentPassword: z.string().optional(),
+          newPassword: z.string().min(6, "La nueva contraseña debe tener al menos 6 caracteres"),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user?.openId) {
+          throw new TRPCError({ code: "UNAUTHORIZED" });
+        }
+        const dbUser = await db.getUserByOpenId(ctx.user.openId);
+        if (!dbUser) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Usuario no encontrado" });
+        }
+        if (dbUser.password) {
+          if (!input.currentPassword?.length) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "La contraseña actual es obligatoria",
+            });
+          }
+          const ok = await verifyPassword(input.currentPassword, dbUser.password);
+          if (!ok) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "La contraseña actual no es correcta",
+            });
+          }
+          if (input.currentPassword === input.newPassword) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "La nueva contraseña debe ser distinta de la actual",
+            });
+          }
+        }
+        const passwordHash = await hashPassword(input.newPassword);
+        await db.upsertUser({
+          openId: dbUser.openId!,
+          password: passwordHash,
+        });
+        return { success: true as const };
+      }),
+    /** Envia e-mail de recuperação (Supabase Auth). Sincroniza auth.users se ainda não existir. */
+    requestPasswordReset: publicProcedure
+      .input(z.object({ email: z.string().email("Correo electrónico inválido") }))
+      .mutation(async ({ ctx, input }) => {
+        const email = input.email.trim();
+        const appUser = await db.getUserByEmail(email);
+        if (!appUser?.email || !appUser.password) {
+          return { ok: true as const };
+        }
+        const origin = getSiteOrigin(ctx.req);
+        const redirectTo = `${origin}/auth/recuperar-senha`;
+        const bootstrapPassword = `${nanoid(28)}Aa1!`;
+        const { error: createErr } = await supabaseServer.auth.admin.createUser({
+          email: appUser.email,
+          password: bootstrapPassword,
+          email_confirm: true,
+        });
+        if (createErr) {
+          const msg = createErr.message?.toLowerCase() ?? "";
+          const benign =
+            msg.includes("already been registered") ||
+            msg.includes("already registered") ||
+            msg.includes("duplicate") ||
+            msg.includes("user already");
+          if (!benign) {
+            console.warn("[requestPasswordReset] createUser:", createErr.message);
+          }
+        }
+        const { error: resetErr } = await supabaseServer.auth.resetPasswordForEmail(appUser.email, {
+          redirectTo,
+        });
+        if (resetErr) {
+          console.error("[requestPasswordReset] resetPasswordForEmail:", resetErr.message);
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "No se pudo enviar el correo de recuperación. Verificá la configuración de Auth y el correo en Supabase.",
+          });
+        }
+        return { ok: true as const };
+      }),
+    /** Depois do link do e-mail: grava a nova senha na tabela users (login do app) e no Auth. */
+    completePasswordRecovery: publicProcedure
+      .input(
+        z.object({
+          accessToken: z.string().min(1),
+          newPassword: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const { data: userData, error } = await supabaseServer.auth.getUser(input.accessToken);
+        if (error || !userData.user?.email) {
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: "Enlace inválido o sesión expirada",
+          });
+        }
+        const dbUser = await db.getUserByEmail(userData.user.email);
+        if (!dbUser?.openId) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "No hay una cuenta de la aplicación asociada a este correo",
+          });
+        }
+        const passwordHash = await hashPassword(input.newPassword);
+        await db.upsertUser({
+          openId: dbUser.openId,
+          password: passwordHash,
+        });
+        const { error: upErr } = await supabaseServer.auth.admin.updateUserById(userData.user.id, {
+          password: input.newPassword,
+        });
+        if (upErr) {
+          console.error("[completePasswordRecovery] updateUserById:", upErr.message);
+        }
+        return { ok: true as const };
+      }),
     updateProfile: protectedProcedure
       .input(
         z.object({
@@ -167,6 +293,18 @@ export const appRouter = router({
             });
           }
           console.log("[Register] Usuário encontrado:", user.id);
+
+          const { error: authSyncErr } = await supabaseServer.auth.admin.createUser({
+            email: input.email,
+            password: input.password,
+            email_confirm: true,
+          });
+          if (authSyncErr) {
+            const m = authSyncErr.message?.toLowerCase() ?? "";
+            if (!m.includes("already") && !m.includes("registered") && !m.includes("duplicate")) {
+              console.warn("[Register] Supabase Auth sync:", authSyncErr.message);
+            }
+          }
 
           // Criar sessão JWT
           console.log("[Register] Criando sessão JWT...");

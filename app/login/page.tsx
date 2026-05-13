@@ -97,14 +97,25 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
-          <div className="mt-4 text-center text-sm">
-            <span className="text-muted-foreground">¿No tenés una cuenta? </span>
-            <button
-              onClick={() => router.push("/register")}
-              className="text-primary hover:underline"
-            >
-              Crear cuenta
-            </button>
+          <div className="mt-4 text-center text-sm space-y-2">
+            <div>
+              <button
+                type="button"
+                onClick={() => router.push("/recuperar-senha")}
+                className="text-primary hover:underline"
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
+            </div>
+            <div>
+              <span className="text-muted-foreground">¿No tenés una cuenta? </span>
+              <button
+                onClick={() => router.push("/register")}
+                className="text-primary hover:underline"
+              >
+                Crear cuenta
+              </button>
+            </div>
           </div>
         </CardContent>
       </Card>

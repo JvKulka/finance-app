@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Edit } from "lucide-react";
+import { Edit, Loader2, Lock } from "lucide-react";
 import { format } from "date-fns";
 import { getDateLocale } from "@/lib/i18n/date";
 import { useState, useEffect } from "react";
@@ -22,7 +22,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc/client";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n/useI18n";
 
 export default function ProfilePage() {
@@ -31,6 +30,10 @@ export default function ProfilePage() {
   const dateLocale = getDateLocale(language);
   const { user, loading, refresh } = useAuth();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const utils = trpc.useUtils();
 
@@ -50,6 +53,20 @@ export default function ProfilePage() {
     },
     onError: (error) => {
       toast.error(`${t("profile.saveErrorPrefix")}${error.message}`);
+    },
+  });
+
+  const changePasswordMutation = trpc.auth.changePassword.useMutation({
+    onSuccess: () => {
+      toast.success(t("profile.passwordChangeSuccess"));
+      setIsPasswordDialogOpen(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      utils.auth.me.invalidate();
+    },
+    onError: (error) => {
+      toast.error(`${t("profile.passwordChangeErrorPrefix")}${error.message}`);
     },
   });
 
@@ -88,6 +105,14 @@ export default function ProfilePage() {
     }
   }, [isEditDialogOpen, fullUser, user]);
 
+  useEffect(() => {
+    if (!isPasswordDialogOpen) {
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    }
+  }, [isPasswordDialogOpen]);
+
   if (loading || userLoading) {
     return (
       <div className="p-8 space-y-6">
@@ -98,6 +123,20 @@ export default function ProfilePage() {
   }
 
   const displayUser = fullUser || user;
+  const hasLocalPassword = Boolean(
+    displayUser && "hasLocalPassword" in displayUser && displayUser.hasLocalPassword
+  );
+
+  const handleChangePassword = () => {
+    if (newPassword !== confirmPassword) {
+      toast.error(t("profile.passwordMismatch"));
+      return;
+    }
+    changePasswordMutation.mutate({
+      newPassword,
+      ...(hasLocalPassword ? { currentPassword } : {}),
+    });
+  };
 
   return (
     <div className="p-8 space-y-6">
@@ -184,6 +223,31 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>{t("profile.securityTitle")}</CardTitle>
+            <CardDescription>{t("profile.securityDesc")}</CardDescription>
+          </div>
+          <Button
+            onClick={() => setIsPasswordDialogOpen(true)}
+            variant="outline"
+            className="gap-2"
+          >
+            <Lock className="w-4 h-4" />
+            {t("profile.changePasswordButton")}
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {!hasLocalPassword ? (
+            <div className="rounded-lg border border-muted bg-muted/40 p-4 space-y-2">
+              <p className="font-medium">{t("profile.noLocalPasswordTitle")}</p>
+              <p className="text-sm text-muted-foreground">{t("profile.noLocalPasswordBody")}</p>
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
+
       {/* Dialog de Edición */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
@@ -226,6 +290,81 @@ export default function ProfilePage() {
             <Button onClick={handleSave} disabled={updateMutation.isPending}>
               {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t("profile.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("profile.passwordDialogTitle")}</DialogTitle>
+            <DialogDescription>
+              {hasLocalPassword
+                ? t("profile.passwordDialogDescription")
+                : t("profile.definePasswordDescription")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {hasLocalPassword ? (
+              <div className="grid gap-2">
+                <Label htmlFor="current-pw">{t("profile.passwordCurrent")}</Label>
+                <Input
+                  id="current-pw"
+                  type="password"
+                  autoComplete="current-password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  disabled={changePasswordMutation.isPending}
+                />
+              </div>
+            ) : null}
+            <div className="grid gap-2">
+              <Label htmlFor="new-pw">{t("profile.passwordNew")}</Label>
+              <Input
+                id="new-pw"
+                type="password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                disabled={changePasswordMutation.isPending}
+                minLength={6}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="confirm-pw">{t("profile.passwordConfirm")}</Label>
+              <Input
+                id="confirm-pw"
+                type="password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                disabled={changePasswordMutation.isPending}
+                minLength={6}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsPasswordDialogOpen(false)}
+              disabled={changePasswordMutation.isPending}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              onClick={handleChangePassword}
+              disabled={
+                changePasswordMutation.isPending ||
+                !newPassword ||
+                !confirmPassword ||
+                (hasLocalPassword && !currentPassword)
+              }
+            >
+              {changePasswordMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              {t("profile.changePasswordButton")}
             </Button>
           </DialogFooter>
         </DialogContent>
